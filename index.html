@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Scrybert Controller</title>
+<link rel="stylesheet" href="/assets/vendor/bootstrap.min.css">
+<link rel="stylesheet" href="/assets/controller.css">
+</head>
+<body>
+
+<!-- ============================ SIGN IN ============================ -->
+<section id="screen-login" class="ctl-screen ctl-screen--centered">
+  <div class="ctl-login-card">
+    <h1 class="ctl-brand">Scrybert <span class="ctl-brand__sub">Controller</span></h1>
+    <p class="ctl-login__hint">Every instruction Scrybert sends to a model.</p>
+
+    <form id="form-login" class="ctl-form" autocomplete="on">
+      <div class="mb-3">
+        <label class="form-label" for="input-email">Email</label>
+        <input class="form-control" type="email" id="input-email" name="email"
+               autocomplete="username" required>
+      </div>
+      <div class="mb-3" id="row-password">
+        <label class="form-label" for="input-password">Password</label>
+        <input class="form-control" type="password" id="input-password" name="password"
+               autocomplete="current-password">
+      </div>
+
+      <!-- First login. Access is provisioned by role; no password is ever emailed. -->
+      <div id="row-new-password" class="ctl-hidden">
+        <div class="alert alert-info ctl-alert" id="alert-first-login">
+          No password set for this account yet. Choose one now.
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="input-new-password">New password</label>
+          <input class="form-control" type="password" id="input-new-password"
+                 autocomplete="new-password" minlength="10">
+          <div class="form-text">At least 10 characters.</div>
+        </div>
+      </div>
+
+      <div id="login-error" class="alert alert-danger ctl-alert ctl-hidden"></div>
+      <button class="btn btn-primary w-100" type="submit" id="btn-login">Sign in</button>
+    </form>
+  </div>
+</section>
+
+<!-- ============================ CONSOLE ============================ -->
+<section id="screen-console" class="ctl-screen ctl-hidden">
+
+  <header class="ctl-topbar" id="topbar">
+    <div class="ctl-topbar__brand">
+      <span class="ctl-brand">Scrybert <span class="ctl-brand__sub">Controller</span></span>
+    </div>
+    <div class="ctl-topbar__right">
+      <span class="badge ctl-role-badge" id="badge-role">—</span>
+      <span class="ctl-topbar__email" id="label-email">—</span>
+      <button class="btn btn-sm btn-outline-secondary" id="btn-api-key" type="button">API key</button>
+      <button class="btn btn-sm btn-outline-secondary" id="btn-logout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <div class="ctl-body">
+
+    <!-- Left rail: the four call sites, in the order they reach the model -->
+    <nav class="ctl-rail" id="rail-cores" aria-label="Instruction sets">
+      <div class="ctl-rail__heading">Instruction sets</div>
+      <ul class="ctl-rail__list" id="list-cores"></ul>
+      <div class="ctl-rail__foot">
+        <div class="ctl-legend"><span class="ctl-dot ctl-dot--live"></span> Live</div>
+        <div class="ctl-legend"><span class="ctl-dot ctl-dot--draft"></span> Unsaved draft</div>
+      </div>
+    </nav>
+
+    <!-- Right: the editor -->
+    <main class="ctl-main" id="pane-editor">
+
+      <div id="editor-empty" class="ctl-empty">
+        <p>Pick an instruction set on the left.</p>
+      </div>
+
+      <div id="editor" class="ctl-hidden">
+        <div class="ctl-editor__head" id="editor-head">
+          <div>
+            <h2 class="ctl-editor__title" id="label-core-name">—</h2>
+            <div class="ctl-editor__meta" id="label-core-meta">—</div>
+          </div>
+          <div class="ctl-editor__actions">
+            <button class="btn btn-sm btn-outline-light" id="btn-preview" type="button">Preview</button>
+            <button class="btn btn-sm btn-outline-light" id="btn-save-version" type="button">Save version</button>
+            <button class="btn btn-sm btn-success" id="btn-promote" type="button">Promote to Live</button>
+          </div>
+        </div>
+
+        <div id="banner-problems" class="alert alert-warning ctl-alert ctl-hidden"></div>
+        <div id="banner-status" class="ctl-status ctl-hidden"></div>
+
+        <div id="list-fields" class="ctl-fields"></div>
+      </div>
+    </main>
+  </div>
+</section>
+
+<!-- ============================ MODALS ============================ -->
+<div class="modal fade" id="modal-preview" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Assembled prompt <small class="text-secondary" id="label-preview-bytes"></small></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="ctl-modal__hint">Exactly what goes to the model. Conditional blocks are
+          still shown unresolved — they drop at send time when their value is empty.</p>
+        <pre class="ctl-preview" id="text-preview"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-save" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Save version</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="input-save-note">What changed?</label>
+        <input class="form-control" id="input-save-note" maxlength="280"
+               placeholder="e.g. tightened the headline rule">
+        <div class="form-text">Freezes the draft. Does not change what is Live.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-confirm" type="button">Save version</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-api-key" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Your Scrybert API key</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="ctl-modal__hint">This is the key your phone authenticates with. It is not
+          how you signed in here.</p>
+        <code class="ctl-key" id="text-api-key">—</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/vendor/bootstrap.bundle.min.js"></script>
+<script src="/assets/controller.js"></script>
+</body>
+</html>
