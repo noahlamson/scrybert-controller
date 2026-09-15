@@ -90,6 +90,21 @@
         </ul>
       </div>
 
+      <!-- Accounts. users.py has said ROLE_ADMIN "create users" since roles landed; until
+           now the only way to mint one was a curl carrying a raw admin API key, which is
+           the exact exposure the amended 5.1 removed from the console everywhere else. -->
+      <div class="ctl-group" id="group-accounts">
+        <div class="ctl-group__head ctl-group__head--static">Accounts</div>
+        <ul class="ctl-rail__list">
+          <li>
+            <button class="ctl-rail__item" id="btn-open-users" type="button">
+              <span class="ctl-rail__name">Users</span>
+              <span class="ctl-rail__count" id="label-user-count">&mdash;</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
       <div class="ctl-rail__spacer"></div>
 
       <div class="ctl-rail__foot">
@@ -166,6 +181,81 @@
         </table>
       </div>
       <div class="ctl-empty ctl-hidden" id="browse-empty"><p>Nothing matches that.</p></div>
+    </main>
+
+    <!-- Accounts pane. Same pane slot as the others; one is visible at a time. -->
+    <main class="ctl-main ctl-hidden" id="pane-users">
+      <div class="ctl-editor__head">
+        <div>
+          <h2 class="ctl-editor__title">Users</h2>
+          <div class="ctl-editor__meta" id="label-users-meta">&mdash;</div>
+        </div>
+        <div class="ctl-editor__actions">
+          <button class="btn btn-sm btn-primary" id="btn-new-user" type="button">Add user</button>
+        </div>
+      </div>
+
+      <div id="banner-users-status" class="ctl-status ctl-hidden"></div>
+
+      <!-- THE KEY APPEARS HERE ONCE. There is no endpoint that returns it again; the only
+           recovery is a rotate, which invalidates the old one. So it is shown loudly,
+           stays until dismissed, and is never folded into the table below. -->
+      <div id="panel-new-key" class="alert alert-success ctl-alert ctl-hidden">
+        <div class="fw-semibold mb-1">Account created &mdash; copy this key now</div>
+        <div class="small mb-2" id="label-new-key-who">&mdash;</div>
+        <div class="d-flex gap-2 align-items-center">
+          <input class="form-control form-control-sm font-monospace" id="field-new-key" readonly>
+          <button class="btn btn-sm btn-outline-light" id="btn-copy-key" type="button">Copy</button>
+          <button class="btn btn-sm btn-outline-light" id="btn-dismiss-key" type="button">Done</button>
+        </div>
+        <div class="small mt-2 text-muted">
+          This is the only time it is shown. Lose it and the account needs a new key,
+          which stops the old one working.
+        </div>
+      </div>
+
+      <!-- Add form, hidden until Add user. Same shape as the new-premade form. -->
+      <div id="form-new-user" class="ctl-hidden mb-3">
+        <div class="row g-2">
+          <div class="col-sm-4">
+            <label class="form-label" for="field-user-email">Email</label>
+            <input class="form-control form-control-sm" id="field-user-email" type="email"
+                   placeholder="name@example.com" autocomplete="off">
+          </div>
+          <div class="col-sm-3">
+            <label class="form-label" for="field-user-first">First name</label>
+            <input class="form-control form-control-sm" id="field-user-first" autocomplete="off">
+          </div>
+          <div class="col-sm-3">
+            <label class="form-label" for="field-user-last">Last name</label>
+            <input class="form-control form-control-sm" id="field-user-last" autocomplete="off">
+          </div>
+          <div class="col-sm-2">
+            <label class="form-label" for="select-user-role">Role</label>
+            <select class="form-select form-select-sm" id="select-user-role"></select>
+          </div>
+        </div>
+        <div id="new-user-error" class="alert alert-danger ctl-alert ctl-hidden mt-2"></div>
+        <div class="mt-2 d-flex gap-2">
+          <button class="btn btn-sm btn-primary" id="btn-create-user" type="button">Create</button>
+          <button class="btn btn-sm btn-outline-secondary" id="btn-cancel-user" type="button">Cancel</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm ctl-table align-middle">
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Email</th>
+              <th scope="col">Name</th>
+              <th scope="col">Role</th>
+              <th scope="col" class="text-end">Key</th>
+            </tr>
+          </thead>
+          <tbody id="rows-users"></tbody>
+        </table>
+      </div>
     </main>
 
     <!-- Right: the premade editor. Same pane slot as the cores editor; one is

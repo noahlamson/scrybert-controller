@@ -24,7 +24,7 @@
     parse_event: "Call 4 — one dictated sentence into a calendar event"
   };
 
-  var state = { user: null, cores: [], coreId: null, core: null, timers: {},
+  var state = { user: null, users: [], cores: [], coreId: null, core: null, timers: {},
                premades: [], premadeId: null, premade: null, taxonomy: null,
                premadeTimer: null,
                filter: { q: "", section: "", category: "" },
@@ -397,9 +397,148 @@
     return (state.taxonomy && state.taxonomy.section_labels[sec]) || sec;
   }
 
+  // ------------------------------------------------------------------ users
+  //
+  // The API key is shown ONCE, on create or rotate, and never lives in the table: the
+  // server has no endpoint that returns it and public() omits it, so the moment it is
+  // dismissed it is unrecoverable except by rotating. Treating it as ordinary row data
+  // would imply otherwise.
+
+  var ROLE_LABELS = { super_admin: "Super admin", admin: "Admin",
+                      super_user: "Super user", user: "User" };
+
+  // NOT state.user.can_promote. /me returns can_promote alongside `user`, not inside it,
+  // and enterConsole keeps only data.user - so that property is undefined here. The rest
+  // of this file already tests the role string; do the same and stay in step with it.
+  function isSuperAdmin() {
+    return !!(state.user && state.user.role === "super_admin");
+  }
+
+  function showUsers() {
+    hide($("pane-editor"));
+    hide($("pane-premade"));
+    hide($("pane-premades-browse"));
+    show($("pane-users"));
+    hide($("form-new-user"));
+    loadUsers();
+  }
+
+  function loadUsers() {
+    return api("/users").then(function (data) {
+      state.users = data.users || [];
+      $("label-user-count").textContent = state.users.length;
+      renderUsers();
+    }).catch(function (e) {
+      usersStatus((e.data && e.data.detail) || "Could not load users");
+    });
+  }
+
+  function usersStatus(msg) {
+    var box = $("banner-users-status");
+    if (!msg) { hide(box); return; }
+    box.textContent = msg;
+    show(box);
+  }
+
+  function renderUsers() {
+    var body = $("rows-users");
+    body.innerHTML = "";
+    var canRotate = isSuperAdmin();
+    state.users.forEach(function (u) {
+      var tr = document.createElement("tr");
+      [String(u.id), u.email,
+       ((u.first_name || "") + " " + (u.last_name || "")).trim() || "\u2014",
+       ROLE_LABELS[u.role] || u.role].forEach(function (text) {
+        var td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      var td = document.createElement("td");
+      td.className = "text-end";
+      if (canRotate) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn btn-sm btn-outline-warning";
+        b.textContent = "Rotate";
+        b.addEventListener("click", function () { doRotate(u); });
+        td.appendChild(b);
+      } else {
+        td.textContent = "\u2014";
+      }
+      tr.appendChild(td);
+      body.appendChild(tr);
+    });
+    $("label-users-meta").textContent =
+      state.users.length + (state.users.length === 1 ? " account" : " accounts");
+  }
+
+  function fillRoleOptions() {
+    var sel = $("select-user-role");
+    sel.innerHTML = "";
+    // An Admin's ceiling is Admin - the server enforces it, and offering an option that
+    // will come back 403 is worse than not offering it. Only a super admin sees the
+    // elevated roles at all.
+    var roles = isSuperAdmin()
+      ? ["user", "super_user", "admin", "super_admin"]
+      : ["user", "super_user"];
+    roles.forEach(function (r) {
+      var o = document.createElement("option");
+      o.value = r;
+      o.textContent = ROLE_LABELS[r] || r;
+      sel.appendChild(o);
+    });
+  }
+
+  function showNewKey(who, key) {
+    $("label-new-key-who").textContent = who;
+    $("field-new-key").value = key;
+    show($("panel-new-key"));
+  }
+
+  function doCreateUser() {
+    var err = $("new-user-error");
+    hide(err);
+    var email = $("field-user-email").value.trim();
+    if (!email) {
+      err.textContent = "Enter an email address";
+      show(err);
+      return;
+    }
+    api("/users", "POST", {
+      email: email,
+      first_name: $("field-user-first").value.trim(),
+      last_name: $("field-user-last").value.trim(),
+      role: $("select-user-role").value
+    }).then(function (data) {
+      $("field-user-email").value = "";
+      $("field-user-first").value = "";
+      $("field-user-last").value = "";
+      hide($("form-new-user"));
+      showNewKey(data.email, data.api_key);
+      return loadUsers();
+    }).catch(function (e) {
+      err.textContent = (e.data && e.data.detail) || "Could not create the account";
+      show(err);
+    });
+  }
+
+  function doRotate(u) {
+    // Confirm, because the old key stops working the instant this returns and whoever is
+    // holding it finds out by the app failing.
+    if (!window.confirm("New key for " + u.email + "?\n\nTheir current key stops working immediately.")) {
+      return;
+    }
+    api("/users/" + u.id + "/rotate-key", "POST", {}).then(function (data) {
+      showNewKey(u.email, data.api_key);
+    }).catch(function (e) {
+      usersStatus((e.data && e.data.detail) || "Could not rotate the key");
+    });
+  }
+
   function showBrowse() {
     hide($("pane-editor"));
     hide($("pane-premade"));
+    hide($("pane-users"));
     show($("pane-premades-browse"));
     state.premadeId = null;
     renderBrowse();
@@ -746,6 +885,30 @@
     $("btn-api-key").addEventListener("click", doApiKey);
     $("btn-logout").addEventListener("click", function () {
       api("/logout", "POST", {}).then(function () { location.reload(); });
+    });
+
+    $("btn-open-users").addEventListener("click", showUsers);
+    $("btn-new-user").addEventListener("click", function () {
+      hide($("new-user-error"));
+      fillRoleOptions();
+      show($("form-new-user"));
+      $("field-user-email").focus();
+    });
+    $("btn-cancel-user").addEventListener("click", function () { hide($("form-new-user")); });
+    $("btn-create-user").addEventListener("click", doCreateUser);
+    $("btn-dismiss-key").addEventListener("click", function () {
+      $("field-new-key").value = "";
+      hide($("panel-new-key"));
+    });
+    $("btn-copy-key").addEventListener("click", function () {
+      var f = $("field-new-key");
+      f.select();
+      // execCommand rather than navigator.clipboard: the console is served over plain
+      // http at the moment and the async Clipboard API is gated on a secure context, so
+      // the modern call silently does nothing there.
+      try { document.execCommand("copy"); } catch (e) { /* user can still select it */ }
+      $("btn-copy-key").textContent = "Copied";
+      setTimeout(function () { $("btn-copy-key").textContent = "Copy"; }, 1200);
     });
 
     $("btn-open-premades").addEventListener("click", showBrowse);
