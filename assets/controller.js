@@ -116,8 +116,8 @@
       var list = $("list-premades");
       list.innerHTML = "";
       var li = document.createElement("li");
-      li.className = "ctl-rail__empty";
-      li.textContent = "Premades unavailable";
+      li.className = "ctl-rail__empty ctl-rail__empty--bad";
+      li.textContent = "Premades failed to load";
       list.appendChild(li);
     });
   }
@@ -301,6 +301,16 @@
     });
   }
 
+  // --------------------------------------------------------------- tree
+
+  function toggleGroup(headId, bodyId) {
+    var head = $(headId);
+    var body = $(bodyId);
+    var open = head.getAttribute("aria-expanded") === "true";
+    head.setAttribute("aria-expanded", open ? "false" : "true");
+    if (open) { hide(body); } else { show(body); }
+  }
+
   // ------------------------------------------------------------ premades
   //
   // Same draft -> save -> promote loop as the cores above. Two differences that
@@ -371,7 +381,7 @@
     if (!state.premades.length) {
       var none = document.createElement("li");
       none.className = "ctl-rail__empty";
-      none.textContent = "None yet";
+      none.textContent = "No premades returned";
       list.appendChild(none);
       return;
     }
@@ -652,6 +662,12 @@
       api("/logout", "POST", {}).then(function () { location.reload(); });
     });
 
+    $("toggle-cores").addEventListener("click", function () {
+      toggleGroup("toggle-cores", "list-cores");
+    });
+    $("toggle-premades").addEventListener("click", function () {
+      toggleGroup("toggle-premades", "body-premades");
+    });
     $("btn-new-premade").addEventListener("click", function () {
       $("new-premade-error").classList.add("ctl-hidden");
       bootstrap.Modal.getOrCreateInstance($("modal-new-premade")).show();

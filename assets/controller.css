@@ -51,7 +51,7 @@ body { background: var(--ctl-bg); }
   font-size: .7rem; text-transform: uppercase; letter-spacing: .09em;
   color: var(--bs-secondary-color); padding: 0 .5rem .6rem;
 }
-.ctl-rail__list { list-style: none; margin: 0; padding: 0; flex: 1; }
+.ctl-rail__list { list-style: none; margin: 0; padding: 0; flex: 0 0 auto; }
 
 .ctl-core-item {
   width: 100%; text-align: left; background: transparent; color: inherit;
@@ -123,17 +123,33 @@ body { background: var(--ctl-bg); }
 
 /* ---- premades (Package G) ------------------------------------------------ */
 
-.ctl-rail__heading--spaced {
-  margin-top: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* One spacer owns the leftover height now. Before this, .ctl-rail__list carried
+   flex:1 and BOTH lists claimed it, so an empty premades list stretched to half
+   the column and pushed everything under it to the floor. */
+.ctl-rail__spacer { flex: 1 1 auto; min-height: 1rem; }
+
+.ctl-group { margin-bottom: .35rem; }
+
+.ctl-group__head {
+  display: flex; align-items: center; gap: .4rem;
+  width: 100%; background: none; border: 0; color: var(--bs-secondary-color);
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .09em;
+  padding: .45rem .5rem; text-align: left;
 }
 
-.ctl-rail__add {
-  line-height: 1;
-  padding: 0 .45rem;
+.ctl-group__head:hover { color: var(--bs-body-color); }
+
+.ctl-caret {
+  width: 0; height: 0; flex: 0 0 auto;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .12s ease-out;
 }
+
+.ctl-group__head[aria-expanded="true"] .ctl-caret { transform: rotate(90deg); }
+
+.ctl-rail__plus { display: inline-block; width: 1rem; opacity: .8; }
 
 .ctl-rail__link {
   background: none;
@@ -205,3 +221,5 @@ body { background: var(--ctl-bg); }
   font-size: .68rem;
   vertical-align: middle;
 }
+
+.ctl-rail__empty--bad { color: #e8836b; opacity: 1; }

@@ -65,16 +65,37 @@
   <div class="ctl-body">
 
     <!-- Left rail: the four call sites, in the order they reach the model -->
-    <nav class="ctl-rail" id="rail-cores" aria-label="Instruction sets">
-      <div class="ctl-rail__heading">Instruction sets</div>
-      <ul class="ctl-rail__list" id="list-cores"></ul>
-      <div class="ctl-rail__heading ctl-rail__heading--spaced">
-        Premades
-        <button class="btn btn-sm btn-outline-light ctl-rail__add" id="btn-new-premade"
-                type="button" title="New premade">+</button>
+    <nav class="ctl-rail" id="rail-cores" aria-label="Instruction sets and premades">
+
+      <!-- Two collapsible groups. Both open by default: the console's whole job is
+           showing what is live at a glance, and a collapsed group hides that. -->
+      <div class="ctl-group" id="group-cores">
+        <button class="ctl-group__head" id="toggle-cores" type="button"
+                aria-expanded="true" aria-controls="list-cores">
+          <span class="ctl-caret" aria-hidden="true"></span>
+          <span>Instruction sets</span>
+        </button>
+        <ul class="ctl-rail__list" id="list-cores"></ul>
       </div>
-      <ul class="ctl-rail__list" id="list-premades"></ul>
-      <button class="ctl-rail__link" id="btn-submissions" type="button">Submissions</button>
+
+      <div class="ctl-group" id="group-premades">
+        <button class="ctl-group__head" id="toggle-premades" type="button"
+                aria-expanded="true" aria-controls="body-premades">
+          <span class="ctl-caret" aria-hidden="true"></span>
+          <span>Premades</span>
+        </button>
+        <div id="body-premades">
+          <ul class="ctl-rail__list" id="list-premades"></ul>
+          <button class="ctl-rail__link" id="btn-new-premade" type="button">
+            <span class="ctl-rail__plus">+</span> Add new
+          </button>
+          <button class="ctl-rail__link" id="btn-submissions" type="button">
+            <span class="ctl-rail__plus">&#9744;</span> Submissions
+          </button>
+        </div>
+      </div>
+
+      <div class="ctl-rail__spacer"></div>
 
       <div class="ctl-rail__foot">
         <div class="ctl-legend"><span class="ctl-dot ctl-dot--live"></span> Live</div>
