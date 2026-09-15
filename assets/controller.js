@@ -26,7 +26,9 @@
 
   var state = { user: null, cores: [], coreId: null, core: null, timers: {},
                premades: [], premadeId: null, premade: null, taxonomy: null,
-               premadeTimer: null };
+               premadeTimer: null,
+               filter: { q: "", section: "", category: "" },
+               sort: { key: "section", dir: 1 } };
 
   function $(id) { return document.getElementById(id); }
   function show(el) { el.classList.remove("ctl-hidden"); }
@@ -113,12 +115,8 @@
     loadTaxonomy().then(loadPremades).catch(function () {
       // A premades failure must not take the cores console down with it - the
       // instruction sets are the load-bearing half of this page.
-      var list = $("list-premades");
-      list.innerHTML = "";
-      var li = document.createElement("li");
-      li.className = "ctl-rail__empty ctl-rail__empty--bad";
-      li.textContent = "Premades failed to load";
-      list.appendChild(li);
+      $("label-premade-count").textContent = "!";
+      $("label-premade-count").title = "Premades failed to load";
     });
   }
 
@@ -168,6 +166,7 @@
   function selectCore(id) {
     state.premadeId = null;
     hide($("pane-premade"));
+    hide($("pane-premades-browse"));
     show($("pane-editor"));
     state.coreId = id;
     renderRail();
@@ -354,6 +353,17 @@
             sel.appendChild(o);
           });
         });
+      var filterSel = $("select-filter-category");
+      filterSel.innerHTML = "";
+      var all = document.createElement("option");
+      all.value = ""; all.textContent = "All categories";
+      filterSel.appendChild(all);
+      data.categories.forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c; o.textContent = c;
+        filterSel.appendChild(o);
+      });
+      renderChips();
       [["select-premade-section", data.sections], ["select-new-section", data.sections]]
         .forEach(function (pair) {
           var sel = $(pair[0]);
@@ -376,47 +386,126 @@
   }
 
   function renderPremadeRail() {
-    var list = $("list-premades");
-    list.innerHTML = "";
-    if (!state.premades.length) {
-      var none = document.createElement("li");
-      none.className = "ctl-rail__empty";
-      none.textContent = "No premades returned";
-      list.appendChild(none);
-      return;
+    var live = state.premades.filter(function (p) { return p.live; }).length;
+    $("label-premade-count").textContent = live + "/" + state.premades.length;
+    $("label-premade-count").title = live + " live of " + state.premades.length + " total";
+  }
+
+  // ---------------------------------------------------------------- browse
+
+  function sectionLabel(sec) {
+    return (state.taxonomy && state.taxonomy.section_labels[sec]) || sec;
+  }
+
+  function showBrowse() {
+    hide($("pane-editor"));
+    hide($("pane-premade"));
+    show($("pane-premades-browse"));
+    state.premadeId = null;
+    renderBrowse();
+  }
+
+  function renderChips() {
+    var box = $("chips-section");
+    box.innerHTML = "";
+    var opts = [{ v: "", t: "All sections" }];
+    ((state.taxonomy && state.taxonomy.sections) || []).forEach(function (sec) {
+      opts.push({ v: sec, t: sectionLabel(sec) });
+    });
+    opts.forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "ctl-chip" + (state.filter.section === o.v ? " is-on" : "");
+      b.textContent = o.t;
+      b.addEventListener("click", function () {
+        state.filter.section = o.v;
+        renderChips();
+        renderBrowse();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function matches(p) {
+    var f = state.filter;
+    if (f.section && p.section !== f.section) { return false; }
+    if (f.category && p.category !== f.category) { return false; }
+    if (f.q) {
+      var hay = (p.name + " " + p.id + " " + (p.category || "")).toLowerCase();
+      if (hay.indexOf(f.q.toLowerCase()) === -1) { return false; }
     }
-    state.premades.forEach(function (p) {
-      var li = document.createElement("li");
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "ctl-rail__item" + (state.premadeId === p.id ? " is-active" : "");
-      var dot = document.createElement("span");
-      // Live and dirty are independent: an entry can be live AND have unsaved
-      // edits sitting in its draft, which is exactly the state worth seeing.
-      dot.className = "ctl-dot " + (p.live ? "ctl-dot--live" : "ctl-dot--off");
-      btn.appendChild(dot);
-      var name = document.createElement("span");
-      name.className = "ctl-rail__name";
-      name.textContent = p.name;
-      btn.appendChild(name);
+    return true;
+  }
+
+  function sorted(rows) {
+    var k = state.sort.key, dir = state.sort.dir;
+    return rows.slice().sort(function (a, b) {
+      var x = a[k], y = b[k];
+      if (k === "weight") { return (x - y) * dir; }
+      x = String(x || "").toLowerCase();
+      y = String(y || "").toLowerCase();
+      if (x < y) { return -1 * dir; }
+      if (x > y) { return 1 * dir; }
+      // Stable-ish secondary: weight, so a section sort still reads in display order.
+      return (a.weight - b.weight);
+    });
+  }
+
+  function renderBrowse() {
+    var body = $("rows-premades");
+    body.innerHTML = "";
+    var rows = sorted(state.premades.filter(matches));
+    var live = state.premades.filter(function (p) { return p.live; }).length;
+    var dirty = state.premades.filter(function (p) { return p.draft_dirty; }).length;
+    $("label-browse-meta").textContent =
+      state.premades.length + " total · " + live + " live · " + dirty +
+      " with unsaved drafts" +
+      (rows.length !== state.premades.length ? " · showing " + rows.length : "");
+    if (!rows.length) { show($("browse-empty")); return; }
+    hide($("browse-empty"));
+    rows.forEach(function (p) {
+      var tr = document.createElement("tr");
+      tr.className = "ctl-row";
+      tr.tabIndex = 0;
+      function cell(text, cls) {
+        var td = document.createElement("td");
+        if (cls) { td.className = cls; }
+        td.textContent = text;
+        tr.appendChild(td);
+        return td;
+      }
+      cell(p.name, "ctl-cell__name");
+      cell(p.id, "ctl-cell__id");
+      cell(sectionLabel(p.section));
+      cell(p.category || "—");
+      cell(String(p.weight), "ctl-th--num");
+      var liveTd = document.createElement("td");
+      var badge = document.createElement("span");
+      badge.className = "badge " + (p.live ? "ctl-badge-live" : "ctl-badge-off");
+      badge.textContent = p.live ? "v" + p.published_version : "not live";
+      liveTd.appendChild(badge);
+      tr.appendChild(liveTd);
+      var draftTd = document.createElement("td");
       if (p.draft_dirty) {
         var d = document.createElement("span");
-        d.className = "ctl-dot ctl-dot--draft";
-        d.title = "Unsaved draft";
-        btn.appendChild(d);
+        d.className = "badge ctl-badge-draft";
+        d.textContent = "unsaved";
+        draftTd.appendChild(d);
+      } else {
+        draftTd.textContent = "—";
       }
-      var sub = document.createElement("span");
-      sub.className = "ctl-rail__sub";
-      sub.textContent = (state.taxonomy && state.taxonomy.section_labels[p.section]) || p.section;
-      btn.appendChild(sub);
-      btn.addEventListener("click", function () { selectPremade(p.id); });
-      li.appendChild(btn);
-      list.appendChild(li);
+      tr.appendChild(draftTd);
+      tr.addEventListener("click", function () { selectPremade(p.id); });
+      tr.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { selectPremade(p.id); }
+      });
+      body.appendChild(tr);
     });
   }
 
   function showPremadePane() {
     hide($("pane-editor"));
+    hide($("pane-premades-browse"));
     show($("pane-premade"));
   }
 
@@ -598,11 +687,8 @@
     api("/premades/" + state.premadeId, "DELETE")
       .then(function () {
         premadeStatus("");
-        state.premadeId = null;
         state.premade = null;
-        hide($("pane-premade"));
-        show($("pane-editor"));
-        loadPremades();
+        loadPremades().then(showBrowse);
       })
       .catch(function (e) { premadeStatus(detail(e) || "Could not delete.", "bad"); });
   }
@@ -662,11 +748,27 @@
       api("/logout", "POST", {}).then(function () { location.reload(); });
     });
 
+    $("btn-open-premades").addEventListener("click", showBrowse);
+    $("btn-back-premades").addEventListener("click", showBrowse);
+    $("input-search").addEventListener("input", function () {
+      state.filter.q = this.value.trim();
+      renderBrowse();
+    });
+    $("select-filter-category").addEventListener("change", function () {
+      state.filter.category = this.value;
+      renderBrowse();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".ctl-th[data-sort]"),
+      function (th) {
+        th.addEventListener("click", function () {
+          var key = th.getAttribute("data-sort");
+          if (state.sort.key === key) { state.sort.dir = -state.sort.dir; }
+          else { state.sort.key = key; state.sort.dir = 1; }
+          renderBrowse();
+        });
+      });
     $("toggle-cores").addEventListener("click", function () {
       toggleGroup("toggle-cores", "list-cores");
-    });
-    $("toggle-premades").addEventListener("click", function () {
-      toggleGroup("toggle-premades", "body-premades");
     });
     $("btn-new-premade").addEventListener("click", function () {
       $("new-premade-error").classList.add("ctl-hidden");

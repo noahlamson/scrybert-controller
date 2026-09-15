@@ -79,20 +79,15 @@
       </div>
 
       <div class="ctl-group" id="group-premades">
-        <button class="ctl-group__head" id="toggle-premades" type="button"
-                aria-expanded="true" aria-controls="body-premades">
-          <span class="ctl-caret" aria-hidden="true"></span>
-          <span>Premades</span>
-        </button>
-        <div id="body-premades">
-          <ul class="ctl-rail__list" id="list-premades"></ul>
-          <button class="ctl-rail__link" id="btn-new-premade" type="button">
-            <span class="ctl-rail__plus">+</span> Add new
-          </button>
-          <button class="ctl-rail__link" id="btn-submissions" type="button">
-            <span class="ctl-rail__plus">&#9744;</span> Submissions
-          </button>
-        </div>
+        <div class="ctl-group__head ctl-group__head--static">Gallery</div>
+        <ul class="ctl-rail__list">
+          <li>
+            <button class="ctl-rail__item" id="btn-open-premades" type="button">
+              <span class="ctl-rail__name">Premades</span>
+              <span class="ctl-rail__count" id="label-premade-count">—</span>
+            </button>
+          </li>
+        </ul>
       </div>
 
       <div class="ctl-rail__spacer"></div>
@@ -130,12 +125,56 @@
       </div>
     </main>
 
+    <!-- Right: the gallery browser. The rail cannot hold 200 entries and a tree by
+         category would only trade scrolling for guessing which bucket something is
+         in. Search is the thing that actually scales, so this is a table. -->
+    <main class="ctl-main ctl-hidden" id="pane-premades-browse">
+      <div class="ctl-editor__head">
+        <div>
+          <h2 class="ctl-editor__title">Premades</h2>
+          <div class="ctl-editor__meta" id="label-browse-meta">—</div>
+        </div>
+        <div class="ctl-editor__actions">
+          <button class="btn btn-sm btn-outline-light" id="btn-submissions" type="button">Submissions</button>
+          <button class="btn btn-sm btn-primary" id="btn-new-premade" type="button">Add new</button>
+        </div>
+      </div>
+
+      <div class="ctl-toolbar">
+        <input class="form-control form-control-sm ctl-search" id="input-search"
+               type="search" placeholder="Search name, id or category">
+        <div class="ctl-chips" id="chips-section"></div>
+        <select class="form-select form-select-sm ctl-chips__select" id="select-filter-category">
+          <option value="">All categories</option>
+        </select>
+      </div>
+
+      <div class="ctl-table-wrap">
+        <table class="table table-sm ctl-table">
+          <thead>
+            <tr>
+              <th class="ctl-th" data-sort="name">Name</th>
+              <th class="ctl-th" data-sort="id">Id</th>
+              <th class="ctl-th" data-sort="section">Section</th>
+              <th class="ctl-th" data-sort="category">Category</th>
+              <th class="ctl-th ctl-th--num" data-sort="weight">Weight</th>
+              <th class="ctl-th">Live</th>
+              <th class="ctl-th">Draft</th>
+            </tr>
+          </thead>
+          <tbody id="rows-premades"></tbody>
+        </table>
+      </div>
+      <div class="ctl-empty ctl-hidden" id="browse-empty"><p>Nothing matches that.</p></div>
+    </main>
+
     <!-- Right: the premade editor. Same pane slot as the cores editor; one is
          always hidden. Gallery entries are distribution, not plumbing, so they
          get their own metadata block above the instruction text. -->
     <main class="ctl-main ctl-hidden" id="pane-premade">
       <div class="ctl-editor__head">
         <div>
+          <button class="ctl-back" id="btn-back-premades" type="button">&#8592; All premades</button>
           <h2 class="ctl-editor__title" id="label-premade-name">—</h2>
           <div class="ctl-editor__meta" id="label-premade-meta">—</div>
         </div>

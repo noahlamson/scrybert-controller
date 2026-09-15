@@ -169,12 +169,6 @@ body { background: var(--ctl-bg); }
   padding: .3rem .1rem;
 }
 
-.ctl-rail__sub {
-  display: block;
-  font-size: .72rem;
-  opacity: .55;
-  padding-left: 1.1rem;
-}
 
 /* Off = exists but not promoted. Deliberately not red: an unpromoted entry is a
    normal working state in a staging console, not an error. */
@@ -223,3 +217,78 @@ body { background: var(--ctl-bg); }
 }
 
 .ctl-rail__empty--bad { color: #e8836b; opacity: 1; }
+
+/* ---- gallery browser ----------------------------------------------------- */
+
+.ctl-group__head--static { cursor: default; padding: .45rem .5rem; }
+
+.ctl-rail__count {
+  margin-left: auto;
+  font-size: .72rem;
+  opacity: .6;
+  font-variant-numeric: tabular-nums;
+}
+
+.ctl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+}
+
+.ctl-search { max-width: 22rem; }
+.ctl-chips { display: flex; gap: .3rem; flex-wrap: wrap; }
+.ctl-chips__select { width: auto; }
+
+.ctl-chip {
+  background: none;
+  border: 1px solid var(--ctl-line);
+  border-radius: 999px;
+  color: var(--bs-secondary-color);
+  font-size: .78rem;
+  padding: .15rem .7rem;
+}
+
+.ctl-chip:hover { color: var(--bs-body-color); }
+.ctl-chip.is-on {
+  background: rgba(255, 255, 255, .09);
+  color: var(--bs-body-color);
+  border-color: rgba(255, 255, 255, .25);
+}
+
+.ctl-table-wrap { overflow-x: auto; }
+
+.ctl-table { margin: 0; font-size: .86rem; }
+.ctl-table td, .ctl-table th { border-color: rgba(255, 255, 255, .07); vertical-align: middle; }
+
+.ctl-th {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ctl-th--num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.ctl-row { cursor: pointer; }
+.ctl-row:hover { background: rgba(255, 255, 255, .045); }
+.ctl-row:focus-visible { outline: 2px solid rgba(255, 255, 255, .35); outline-offset: -2px; }
+
+.ctl-cell__name { font-weight: 500; }
+.ctl-cell__id { font-family: var(--bs-font-monospace); opacity: .65; font-size: .8rem; }
+
+.ctl-badge-off { background: #495057; font-size: .68rem; }
+.ctl-badge-draft { background: #b8860b; font-size: .68rem; }
+
+.ctl-back {
+  background: none;
+  border: 0;
+  color: var(--bs-secondary-color);
+  font-size: .78rem;
+  padding: 0 0 .25rem;
+}
+
+.ctl-back:hover { color: var(--bs-body-color); }
