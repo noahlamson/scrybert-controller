@@ -24,7 +24,9 @@
     parse_event: "Call 4 — one dictated sentence into a calendar event"
   };
 
-  var state = { user: null, cores: [], coreId: null, core: null, timers: {} };
+  var state = { user: null, cores: [], coreId: null, core: null, timers: {},
+               premades: [], premadeId: null, premade: null, taxonomy: null,
+               premadeTimer: null };
 
   function $(id) { return document.getElementById(id); }
   function show(el) { el.classList.remove("ctl-hidden"); }
@@ -97,11 +99,27 @@
     $("label-email").textContent = data.user.email;
     $("badge-role").textContent = data.user.role.replace("_", " ");
     // An Admin may edit and save; only a Super Admin may put something Live.
+    // Unpublish and Delete sit behind the same gate server-side, so the buttons
+    // are disabled here for the same reason - an Admin pressing them would only
+    // ever collect a 403.
     if (data.user.role !== "super_admin") {
-      $("btn-promote").disabled = true;
-      $("btn-promote").title = "Only a Super Admin can promote to Live";
+      ["btn-promote", "btn-premade-promote", "btn-premade-unpublish", "btn-premade-delete"]
+        .forEach(function (id) {
+          $(id).disabled = true;
+          $(id).title = "Super Admin only";
+        });
     }
     loadCores();
+    loadTaxonomy().then(loadPremades).catch(function () {
+      // A premades failure must not take the cores console down with it - the
+      // instruction sets are the load-bearing half of this page.
+      var list = $("list-premades");
+      list.innerHTML = "";
+      var li = document.createElement("li");
+      li.className = "ctl-rail__empty";
+      li.textContent = "Premades unavailable";
+      list.appendChild(li);
+    });
   }
 
   // ---------------------------------------------------------------- cores
@@ -148,6 +166,9 @@
   }
 
   function selectCore(id) {
+    state.premadeId = null;
+    hide($("pane-premade"));
+    show($("pane-editor"));
     state.coreId = id;
     renderRail();
     api("/cores/" + id).then(function (core) {
@@ -280,6 +301,342 @@
     });
   }
 
+  // ------------------------------------------------------------ premades
+  //
+  // Same draft -> save -> promote loop as the cores above. Two differences that
+  // matter: a premade carries metadata (section, category, weight, author) that
+  // is NOT versioned and saves immediately, and it can be unpublished or deleted
+  // because it is distributed material rather than plumbing.
+
+  function premadeStatus(msg, kind) {
+    var box = $("banner-premade-status");
+    if (!msg) { hide(box); return; }
+    box.textContent = msg;
+    box.className = "ctl-status " + (kind === "bad" ? "ctl-status--bad" : "ctl-status--ok");
+    show(box);
+  }
+
+  function renderPremadeProblems(problems) {
+    var box = $("banner-premade-problems");
+    if (!problems || !problems.length) { hide(box); return; }
+    box.innerHTML = "";
+    problems.forEach(function (p) {
+      var li = document.createElement("div");
+      li.textContent = p;
+      box.appendChild(li);
+    });
+    show(box);
+  }
+
+  function loadTaxonomy() {
+    return api("/premades/categories").then(function (data) {
+      state.taxonomy = data;
+      [["select-premade-category", data.categories], ["select-new-category", data.categories]]
+        .forEach(function (pair) {
+          var sel = $(pair[0]);
+          sel.innerHTML = "";
+          var blank = document.createElement("option");
+          blank.value = ""; blank.textContent = "—";
+          sel.appendChild(blank);
+          pair[1].forEach(function (c) {
+            var o = document.createElement("option");
+            o.value = c; o.textContent = c;
+            sel.appendChild(o);
+          });
+        });
+      [["select-premade-section", data.sections], ["select-new-section", data.sections]]
+        .forEach(function (pair) {
+          var sel = $(pair[0]);
+          sel.innerHTML = "";
+          pair[1].forEach(function (sec) {
+            var o = document.createElement("option");
+            o.value = sec;
+            o.textContent = (data.section_labels && data.section_labels[sec]) || sec;
+            sel.appendChild(o);
+          });
+        });
+    });
+  }
+
+  function loadPremades() {
+    return api("/premades").then(function (data) {
+      state.premades = data.premades || [];
+      renderPremadeRail();
+    });
+  }
+
+  function renderPremadeRail() {
+    var list = $("list-premades");
+    list.innerHTML = "";
+    if (!state.premades.length) {
+      var none = document.createElement("li");
+      none.className = "ctl-rail__empty";
+      none.textContent = "None yet";
+      list.appendChild(none);
+      return;
+    }
+    state.premades.forEach(function (p) {
+      var li = document.createElement("li");
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ctl-rail__item" + (state.premadeId === p.id ? " is-active" : "");
+      var dot = document.createElement("span");
+      // Live and dirty are independent: an entry can be live AND have unsaved
+      // edits sitting in its draft, which is exactly the state worth seeing.
+      dot.className = "ctl-dot " + (p.live ? "ctl-dot--live" : "ctl-dot--off");
+      btn.appendChild(dot);
+      var name = document.createElement("span");
+      name.className = "ctl-rail__name";
+      name.textContent = p.name;
+      btn.appendChild(name);
+      if (p.draft_dirty) {
+        var d = document.createElement("span");
+        d.className = "ctl-dot ctl-dot--draft";
+        d.title = "Unsaved draft";
+        btn.appendChild(d);
+      }
+      var sub = document.createElement("span");
+      sub.className = "ctl-rail__sub";
+      sub.textContent = (state.taxonomy && state.taxonomy.section_labels[p.section]) || p.section;
+      btn.appendChild(sub);
+      btn.addEventListener("click", function () { selectPremade(p.id); });
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+
+  function showPremadePane() {
+    hide($("pane-editor"));
+    show($("pane-premade"));
+  }
+
+  function selectPremade(pid) {
+    state.premadeId = pid;
+    state.coreId = null;
+    api("/premades/" + pid).then(function (entry) {
+      state.premade = entry;
+      showPremadePane();
+      renderPremadeRail();
+      renderPremadeEditor(entry);
+    }).catch(function (e) { premadeStatus(detail(e) || "Could not load that entry.", "bad"); });
+  }
+
+  function renderPremadeEditor(entry) {
+    $("label-premade-name").textContent = entry.name || entry.id;
+    $("label-premade-meta").textContent =
+      entry.id + " · Live v" + entry.published_version +
+      " · Latest v" + entry.latest_version +
+      (entry.published_version ? "" : " · never promoted");
+    $("select-premade-section").value = entry.section;
+    $("select-premade-category").value = entry.category || "";
+    $("input-premade-weight").value = entry.weight;
+    $("check-premade-editable").checked = !!entry.editable;
+    $("input-premade-display-name").value = entry.name || "";
+    $("input-premade-description").value = entry.description || "";
+    $("input-author-handle").value = (entry.author && entry.author.handle) || "";
+    $("input-author-bio").value = (entry.author && entry.author.bio) || "";
+    $("input-author-links").value =
+      ((entry.author && entry.author.links) || []).join("\n");
+    $("text-premade-instructions").value = entry.draft.instructions || "";
+    premadeSourceHint(entry.section);
+    toggleAuthorBlock(entry.section);
+    renderPremadeProblems(entry.problems);
+    premadeStatus("");
+    renderVersions(entry);
+  }
+
+  function premadeSourceHint(section) {
+    var hint = { house: "Grabs resolve as a POINTER — a promoted fix reaches everyone still on it.",
+                 featured: "Grabs take a COPY at add time.",
+                 open_stack: "Grabs take a COPY at add time." };
+    $("hint-premade-source").textContent = hint[section] || "";
+  }
+
+  function toggleAuthorBlock(section) {
+    if (section === "featured") { show($("block-premade-author")); }
+    else { hide($("block-premade-author")); }
+  }
+
+  function renderVersions(entry) {
+    var list = $("list-premade-versions");
+    list.innerHTML = "";
+    if (!entry.versions.length) {
+      var none = document.createElement("li");
+      none.className = "ctl-rail__empty";
+      none.textContent = "No saved versions yet — the draft has never been frozen.";
+      list.appendChild(none);
+      return;
+    }
+    entry.versions.forEach(function (v) {
+      var li = document.createElement("li");
+      li.className = "ctl-version";
+      var label = document.createElement("span");
+      label.textContent = "v" + v.version + (v.note ? " — " + v.note : "");
+      if (v.version === entry.published_version) {
+        var live = document.createElement("span");
+        live.className = "badge ctl-badge-live";
+        live.textContent = "Live";
+        label.appendChild(document.createTextNode(" "));
+        label.appendChild(live);
+      }
+      li.appendChild(label);
+      if (v.version !== entry.published_version) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-sm btn-outline-light";
+        btn.textContent = "Roll back to this";
+        btn.addEventListener("click", function () { doPremadeRollback(v.version); });
+        li.appendChild(btn);
+      }
+      list.appendChild(li);
+    });
+  }
+
+  function queuePremadeDraft() {
+    if (state.premadeTimer) { clearTimeout(state.premadeTimer); }
+    state.premadeTimer = setTimeout(function () {
+      api("/premades/" + state.premadeId + "/draft", "PUT", {
+        name: $("input-premade-display-name").value,
+        description: $("input-premade-description").value,
+        instructions: $("text-premade-instructions").value
+      }).then(function (res) {
+        renderPremadeProblems(res.problems);
+        premadeStatus("Draft saved.", "ok");
+        loadPremades();
+      }).catch(function (e) {
+        // The token and === rejections land here. They are the point of the check,
+        // so show exactly what the server refused rather than a generic failure.
+        premadeStatus(detail(e) || "Draft not saved.", "bad");
+      });
+    }, 700);
+  }
+
+  function doPremadeMeta() {
+    var links = $("input-author-links").value
+      .split(/[\n,]/).map(function (x) { return x.trim(); })
+      .filter(function (x) { return x.length; });
+    api("/premades/" + state.premadeId + "/meta", "PUT", {
+      section: $("select-premade-section").value,
+      category: $("select-premade-category").value,
+      weight: parseInt($("input-premade-weight").value, 10) || 0,
+      editable: $("check-premade-editable").checked,
+      name: $("input-premade-display-name").value,
+      description: $("input-premade-description").value,
+      author_handle: $("input-author-handle").value,
+      author_bio: $("input-author-bio").value,
+      author_links: links
+    }).then(function () {
+      premadeStatus("Metadata saved. Takes effect immediately — it is not versioned.", "ok");
+      toggleAuthorBlock($("select-premade-section").value);
+      premadeSourceHint($("select-premade-section").value);
+      loadPremades();
+    }).catch(function (e) {
+      var problems = e && e.data && e.data.detail && e.data.detail.problems;
+      if (problems) { renderPremadeProblems(problems); }
+      premadeStatus(detail(e) || "Could not save metadata.", "bad");
+    });
+  }
+
+  function doPremadeSaveVersion() {
+    api("/premades/" + state.premadeId + "/save_version", "POST",
+        { note: $("input-premade-note").value })
+      .then(function (res) {
+        bootstrap.Modal.getOrCreateInstance($("modal-premade-save")).hide();
+        $("input-premade-note").value = "";
+        premadeStatus("Saved as version " + res.version + ". Not Live until you promote it.", "ok");
+        selectPremade(state.premadeId);
+        loadPremades();
+      })
+      .catch(function (e) { premadeStatus(detail(e) || "Could not save.", "bad"); });
+  }
+
+  function doPremadePromote() {
+    api("/premades/" + state.premadeId + "/promote", "POST", {})
+      .then(function (res) {
+        premadeStatus("Live now — version " + res.published_version +
+                      ". Visible in the app's gallery on its next fetch.", "ok");
+        selectPremade(state.premadeId);
+      })
+      .catch(function (e) {
+        var problems = e && e.data && e.data.detail && e.data.detail.problems;
+        if (problems) { renderPremadeProblems(problems); }
+        premadeStatus(detail(e) || "Could not promote.", "bad");
+      });
+  }
+
+  function doPremadeRollback(version) {
+    api("/premades/" + state.premadeId + "/rollback", "POST", { version: version })
+      .then(function (res) {
+        premadeStatus("Rolled back — v" + res.copied_from + " copied forward as v" +
+                      res.published_version + " and promoted. Nothing was rewritten.", "ok");
+        selectPremade(state.premadeId);
+      })
+      .catch(function (e) { premadeStatus(detail(e) || "Could not roll back.", "bad"); });
+  }
+
+  function doPremadeUnpublish() {
+    api("/premades/" + state.premadeId + "/unpublish", "POST", {})
+      .then(function () {
+        premadeStatus("Unpublished. Gone from the gallery; history and text kept.", "ok");
+        selectPremade(state.premadeId);
+        loadPremades();
+      })
+      .catch(function (e) { premadeStatus(detail(e) || "Could not unpublish.", "bad"); });
+  }
+
+  function doPremadeDelete() {
+    api("/premades/" + state.premadeId, "DELETE")
+      .then(function () {
+        premadeStatus("");
+        state.premadeId = null;
+        state.premade = null;
+        hide($("pane-premade"));
+        show($("pane-editor"));
+        loadPremades();
+      })
+      .catch(function (e) { premadeStatus(detail(e) || "Could not delete.", "bad"); });
+  }
+
+  function doNewPremade() {
+    var box = $("new-premade-error");
+    hide(box);
+    api("/premades", "POST", {
+      pid: $("input-new-pid").value.trim().toLowerCase(),
+      section: $("select-new-section").value,
+      name: $("input-new-name").value,
+      category: $("select-new-category").value
+    }).then(function (res) {
+      bootstrap.Modal.getOrCreateInstance($("modal-new-premade")).hide();
+      $("input-new-pid").value = "";
+      $("input-new-name").value = "";
+      loadPremades().then(function () { selectPremade(res.id); });
+    }).catch(function (e) {
+      box.textContent = detail(e) || "Could not create that entry.";
+      show(box);
+    });
+  }
+
+  function doSubmissions() {
+    api("/premades/submissions").then(function (data) {
+      var list = $("list-submissions");
+      list.innerHTML = "";
+      if (!data.submissions.length) {
+        var none = document.createElement("li");
+        none.className = "ctl-rail__empty";
+        none.textContent = "Queue is empty. No submission path exists yet.";
+        list.appendChild(none);
+      } else {
+        data.submissions.forEach(function (sub) {
+          var li = document.createElement("li");
+          li.className = "ctl-version";
+          li.textContent = sub.name + " — " + sub.state;
+          list.appendChild(li);
+        });
+      }
+      bootstrap.Modal.getOrCreateInstance($("modal-submissions")).show();
+    });
+  }
+
   // ---------------------------------------------------------------- boot
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -294,6 +651,25 @@
     $("btn-logout").addEventListener("click", function () {
       api("/logout", "POST", {}).then(function () { location.reload(); });
     });
+
+    $("btn-new-premade").addEventListener("click", function () {
+      $("new-premade-error").classList.add("ctl-hidden");
+      bootstrap.Modal.getOrCreateInstance($("modal-new-premade")).show();
+    });
+    $("btn-new-premade-confirm").addEventListener("click", doNewPremade);
+    $("btn-submissions").addEventListener("click", doSubmissions);
+    $("btn-premade-save").addEventListener("click", function () {
+      bootstrap.Modal.getOrCreateInstance($("modal-premade-save")).show();
+    });
+    $("btn-premade-save-confirm").addEventListener("click", doPremadeSaveVersion);
+    $("btn-premade-promote").addEventListener("click", doPremadePromote);
+    $("btn-premade-unpublish").addEventListener("click", doPremadeUnpublish);
+    $("btn-premade-delete").addEventListener("click", doPremadeDelete);
+    $("btn-premade-meta").addEventListener("click", doPremadeMeta);
+    ["text-premade-instructions", "input-premade-display-name", "input-premade-description"]
+      .forEach(function (id) {
+        $(id).addEventListener("input", queuePremadeDraft);
+      });
 
     // Already signed in? Skip the login screen.
     api("/me").then(function (data) { enterConsole(data); }).catch(function () { /* show login */ });

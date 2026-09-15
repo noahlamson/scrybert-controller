@@ -120,3 +120,88 @@ body { background: var(--ctl-bg); }
   .ctl-rail { border-right: 0; border-bottom: 1px solid var(--ctl-line); }
   .ctl-editor__head { flex-direction: column; }
 }
+
+/* ---- premades (Package G) ------------------------------------------------ */
+
+.ctl-rail__heading--spaced {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ctl-rail__add {
+  line-height: 1;
+  padding: 0 .45rem;
+}
+
+.ctl-rail__link {
+  background: none;
+  border: 0;
+  color: inherit;
+  opacity: .7;
+  font-size: .82rem;
+  padding: .35rem 0 0 .1rem;
+  text-align: left;
+}
+
+.ctl-rail__link:hover { opacity: 1; text-decoration: underline; }
+
+.ctl-rail__empty {
+  opacity: .55;
+  font-size: .82rem;
+  padding: .3rem .1rem;
+}
+
+.ctl-rail__sub {
+  display: block;
+  font-size: .72rem;
+  opacity: .55;
+  padding-left: 1.1rem;
+}
+
+/* Off = exists but not promoted. Deliberately not red: an unpromoted entry is a
+   normal working state in a staging console, not an error. */
+.ctl-dot--off { background: #6c757d; }
+
+.ctl-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem 1rem;
+  margin: 1rem 0;
+}
+
+.ctl-meta-grid__wide { grid-column: 1 / -1; }
+.ctl-meta-grid__check { display: flex; align-items: flex-end; }
+
+.ctl-author {
+  border-top: 1px solid rgba(255, 255, 255, .08);
+  padding-top: .9rem;
+  margin-top: .4rem;
+}
+
+.ctl-meta-save { margin-bottom: 1.25rem; }
+
+.ctl-versions { margin-top: 1.5rem; }
+
+.ctl-versions__list {
+  list-style: none;
+  padding: 0;
+  margin: .5rem 0 0;
+}
+
+.ctl-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .4rem .1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  font-size: .85rem;
+}
+
+.ctl-badge-live {
+  background: #198754;
+  font-size: .68rem;
+  vertical-align: middle;
+}

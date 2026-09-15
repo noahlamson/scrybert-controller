@@ -68,6 +68,14 @@
     <nav class="ctl-rail" id="rail-cores" aria-label="Instruction sets">
       <div class="ctl-rail__heading">Instruction sets</div>
       <ul class="ctl-rail__list" id="list-cores"></ul>
+      <div class="ctl-rail__heading ctl-rail__heading--spaced">
+        Premades
+        <button class="btn btn-sm btn-outline-light ctl-rail__add" id="btn-new-premade"
+                type="button" title="New premade">+</button>
+      </div>
+      <ul class="ctl-rail__list" id="list-premades"></ul>
+      <button class="ctl-rail__link" id="btn-submissions" type="button">Submissions</button>
+
       <div class="ctl-rail__foot">
         <div class="ctl-legend"><span class="ctl-dot ctl-dot--live"></span> Live</div>
         <div class="ctl-legend"><span class="ctl-dot ctl-dot--draft"></span> Unsaved draft</div>
@@ -98,6 +106,98 @@
         <div id="banner-status" class="ctl-status ctl-hidden"></div>
 
         <div id="list-fields" class="ctl-fields"></div>
+      </div>
+    </main>
+
+    <!-- Right: the premade editor. Same pane slot as the cores editor; one is
+         always hidden. Gallery entries are distribution, not plumbing, so they
+         get their own metadata block above the instruction text. -->
+    <main class="ctl-main ctl-hidden" id="pane-premade">
+      <div class="ctl-editor__head">
+        <div>
+          <h2 class="ctl-editor__title" id="label-premade-name">—</h2>
+          <div class="ctl-editor__meta" id="label-premade-meta">—</div>
+        </div>
+        <div class="ctl-editor__actions">
+          <button class="btn btn-sm btn-outline-light" id="btn-premade-save" type="button">Save version</button>
+          <button class="btn btn-sm btn-success" id="btn-premade-promote" type="button">Promote to Live</button>
+          <button class="btn btn-sm btn-outline-warning" id="btn-premade-unpublish" type="button">Unpublish</button>
+          <button class="btn btn-sm btn-outline-danger" id="btn-premade-delete" type="button">Delete</button>
+        </div>
+      </div>
+
+      <div id="banner-premade-problems" class="alert alert-warning ctl-alert ctl-hidden"></div>
+      <div id="banner-premade-status" class="ctl-status ctl-hidden"></div>
+
+      <div class="ctl-meta-grid">
+        <div>
+          <label class="form-label" for="select-premade-section">Section</label>
+          <select class="form-select form-select-sm" id="select-premade-section"></select>
+          <div class="form-text" id="hint-premade-source">—</div>
+        </div>
+        <div>
+          <label class="form-label" for="select-premade-category">Category</label>
+          <select class="form-select form-select-sm" id="select-premade-category"></select>
+        </div>
+        <div>
+          <label class="form-label" for="input-premade-weight">Weight</label>
+          <input class="form-control form-control-sm" id="input-premade-weight" type="number" min="0" max="9999">
+          <div class="form-text">Lower sorts first.</div>
+        </div>
+        <div class="ctl-meta-grid__check">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="check-premade-editable">
+            <label class="form-check-label" for="check-premade-editable">Editable once grabbed</label>
+          </div>
+        </div>
+        <div class="ctl-meta-grid__wide">
+          <label class="form-label" for="input-premade-display-name">Name</label>
+          <input class="form-control form-control-sm" id="input-premade-display-name" maxlength="80">
+        </div>
+        <div class="ctl-meta-grid__wide">
+          <label class="form-label" for="input-premade-description">Description</label>
+          <input class="form-control form-control-sm" id="input-premade-description" maxlength="300">
+        </div>
+      </div>
+
+      <!-- Attribution is Featured's. Hidden elsewhere so a House entry has no
+           empty author block to fill in by accident. -->
+      <div class="ctl-author ctl-hidden" id="block-premade-author">
+        <div class="ctl-rail__heading">Author</div>
+        <div class="ctl-meta-grid">
+          <div class="ctl-meta-grid__wide">
+            <label class="form-label" for="input-author-handle">Handle</label>
+            <input class="form-control form-control-sm" id="input-author-handle" maxlength="80">
+          </div>
+          <div class="ctl-meta-grid__wide">
+            <label class="form-label" for="input-author-bio">Bio</label>
+            <input class="form-control form-control-sm" id="input-author-bio" maxlength="300">
+          </div>
+          <div class="ctl-meta-grid__wide">
+            <label class="form-label" for="input-author-links">Links</label>
+            <input class="form-control form-control-sm" id="input-author-links"
+                   placeholder="one URL per line, or comma separated">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-sm btn-outline-light ctl-meta-save" id="btn-premade-meta" type="button">
+        Save metadata
+      </button>
+
+      <div class="ctl-fields">
+        <div class="ctl-field">
+          <label class="form-label" for="text-premade-instructions">Instructions</label>
+          <div class="form-text ctl-field__hint">The fragment, not the shell. No Scrybert
+            tokens and no <code>===</code> markers — the same check every account's own
+            summarizer goes through. Autosaves to the draft.</div>
+          <textarea class="form-control ctl-textarea" id="text-premade-instructions" rows="18"></textarea>
+        </div>
+      </div>
+
+      <div class="ctl-versions">
+        <div class="ctl-rail__heading">Versions</div>
+        <ul class="ctl-versions__list" id="list-premade-versions"></ul>
       </div>
     </main>
   </div>
@@ -152,6 +252,71 @@
         <p class="ctl-modal__hint">This is the key your phone authenticates with. It is not
           how you signed in here.</p>
         <code class="ctl-key" id="text-api-key">—</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-new-premade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">New premade</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="input-new-pid">Id</label>
+        <input class="form-control" id="input-new-pid" maxlength="64" placeholder="lower-case-with-hyphens">
+        <div class="form-text">Becomes the summarizer id on every account that adds it, and
+          ids are permanent. Choose it once.</div>
+        <label class="form-label mt-3" for="select-new-section">Section</label>
+        <select class="form-select" id="select-new-section"></select>
+        <label class="form-label mt-3" for="input-new-name">Name</label>
+        <input class="form-control" id="input-new-name" maxlength="80">
+        <label class="form-label mt-3" for="select-new-category">Category</label>
+        <select class="form-select" id="select-new-category"></select>
+        <div id="new-premade-error" class="alert alert-danger ctl-alert ctl-hidden mt-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+        <button class="btn btn-primary" id="btn-new-premade-confirm" type="button">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-premade-save" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Save version</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="input-premade-note">What changed?</label>
+        <input class="form-control" id="input-premade-note" maxlength="280">
+        <div class="form-text">Freezes the draft. Does not change what is Live.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+        <button class="btn btn-primary" id="btn-premade-save-confirm" type="button">Save version</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-submissions" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Submission queue</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="ctl-modal__hint">Prepared, not built. The table exists so a user-submitted
+          summarizer has somewhere to land; nothing writes to it yet and there is no review
+          workflow.</p>
+        <ul class="ctl-versions__list" id="list-submissions"></ul>
       </div>
     </div>
   </div>
