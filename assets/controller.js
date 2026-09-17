@@ -16,7 +16,7 @@
   // its own prompt and its own call.
   // The two tips cores are app copy, not prompts: listed last, after every model call.
   var ORDER = ["summarizer", "pivotal_moments", "regenerater", "todo_sweep", "parse_event",
-               "home_tips", "convo_tips"];
+               "recapper", "home_tips", "convo_tips"];
   var NESTED = { pivotal_moments: true };
   var SUBTITLE = {
     summarizer: "Call 1 — the first pass over a transcript",
@@ -24,6 +24,7 @@
     regenerater: "Call 1 — a rewrite. No moments, no lister, to-dos forced off.",
     todo_sweep: "Call 3 — picks one action item to become a reminder",
     parse_event: "Call 4 — one dictated sentence into a calendar event",
+    recapper: "Its own pipeline — a day of titles, blurbs and to dos into two paragraphs. Runs on a clock, not on a conversation.",
     home_tips: "App copy, not a prompt. One tip per line, shown on Base one per load. End a line with [bunker_people], [bunker_things] or [bunker_location] to link it.",
     convo_tips: "App copy, not a prompt. One tip per line, shown on Convos one per load. End a line with [bunker_people], [bunker_things] or [bunker_location] to link it."
   };
