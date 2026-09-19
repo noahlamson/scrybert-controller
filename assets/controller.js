@@ -461,12 +461,21 @@
       var td = document.createElement("td");
       td.className = "text-end";
       if (canRotate) {
+        var wrap = document.createElement("div");
+        wrap.className = "d-flex gap-2 justify-content-end";
         var b = document.createElement("button");
         b.type = "button";
         b.className = "btn btn-sm btn-outline-warning";
         b.textContent = "Rotate";
         b.addEventListener("click", function () { doRotate(u); });
-        td.appendChild(b);
+        wrap.appendChild(b);
+        var d = document.createElement("button");
+        d.type = "button";
+        d.className = "btn btn-sm btn-outline-danger";
+        d.textContent = "Delete";
+        d.addEventListener("click", function () { doDeleteUser(u); });
+        wrap.appendChild(d);
+        td.appendChild(wrap);
       } else {
         td.textContent = "\u2014";
       }
@@ -546,6 +555,30 @@
       showNewKey(u.email, data.api_key, data.install_link);
     }).catch(function (e) {
       usersStatus((e.data && e.data.detail) || "Could not rotate the key");
+    });
+  }
+
+  // NOT REVERSIBLE. Deletes the account and every conversation, transcript and summary it
+  // owns - not an archive, a hard delete (see users.delete_account()). Typed-confirmation
+  // rather than a plain window.confirm(): Rotate above is a plain confirm because it is
+  // recoverable in spirit (a new key can be issued again); this is not, so the bar for a
+  // stray click is higher. Typing the email is also the one piece of friction that forces
+  // a second look at WHICH row got clicked in a table that can run to hundreds of rows.
+  function doDeleteUser(u) {
+    var typed = window.prompt(
+      "Delete " + u.email + "?\n\nThis permanently deletes the account and everything it " +
+      "owns - every conversation, transcript and summary. Not an archive; not reversible.\n\n" +
+      "Type the email address to confirm:");
+    if (typed === null) { return; }
+    if (typed.trim().toLowerCase() !== u.email.toLowerCase()) {
+      usersStatus("Email did not match - nothing deleted.");
+      return;
+    }
+    api("/users/" + u.id, "DELETE").then(function () {
+      usersStatus("");
+      return loadUsers();
+    }).catch(function (e) {
+      usersStatus((e.data && e.data.detail) || "Could not delete the account");
     });
   }
 
