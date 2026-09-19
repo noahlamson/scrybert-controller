@@ -105,6 +105,18 @@
         </ul>
       </div>
 
+      <div class="ctl-group" id="group-app">
+        <div class="ctl-group__head ctl-group__head--static">App</div>
+        <ul class="ctl-rail__list">
+          <li>
+            <button class="ctl-rail__item" id="btn-open-updates" type="button">
+              <span class="ctl-rail__name">Updates</span>
+              <span class="ctl-rail__count" id="label-update-count">&mdash;</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
       <div class="ctl-rail__spacer"></div>
 
       <div class="ctl-rail__foot">
@@ -263,6 +275,88 @@
           </thead>
           <tbody id="rows-users"></tbody>
         </table>
+      </div>
+    </main>
+
+    <!-- Updates pane. The in-app announcements blog. No version history by design (see
+         updates.py) - one mutable row per post, published is the only gate, so editing a
+         LIVE post is immediately what readers see. -->
+    <main class="ctl-main ctl-hidden" id="pane-updates">
+      <div class="ctl-editor__head">
+        <div>
+          <h2 class="ctl-editor__title">App Updates</h2>
+          <div class="ctl-editor__meta" id="label-updates-meta">&mdash;</div>
+        </div>
+        <div class="ctl-editor__actions">
+          <button class="btn btn-sm btn-primary" id="btn-new-update" type="button">New update</button>
+        </div>
+      </div>
+
+      <div id="banner-updates-status" class="ctl-status ctl-hidden"></div>
+
+      <div class="table-responsive">
+        <table class="table table-sm ctl-table align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Title</th>
+              <th scope="col">Short description</th>
+              <th scope="col">Live</th>
+              <th scope="col">Promoted</th>
+            </tr>
+          </thead>
+          <tbody id="rows-updates"></tbody>
+        </table>
+      </div>
+      <div class="ctl-empty ctl-hidden" id="updates-empty"><p>No updates yet.</p></div>
+    </main>
+
+    <!-- One update, edited in place. -->
+    <main class="ctl-main ctl-hidden" id="pane-update">
+      <div class="ctl-editor__head">
+        <div>
+          <button class="ctl-back" id="btn-back-updates" type="button">&#8592; All updates</button>
+          <h2 class="ctl-editor__title" id="label-update-name">&mdash;</h2>
+          <div class="ctl-editor__meta" id="label-update-meta">&mdash;</div>
+        </div>
+        <div class="ctl-editor__actions">
+          <button class="btn btn-sm btn-outline-light" id="btn-update-save" type="button">Save</button>
+          <button class="btn btn-sm btn-success" id="btn-update-promote" type="button">Promote to Live</button>
+          <button class="btn btn-sm btn-outline-warning" id="btn-update-unpublish" type="button">Unpublish</button>
+          <button class="btn btn-sm btn-outline-danger" id="btn-update-delete" type="button">Delete</button>
+        </div>
+      </div>
+
+      <div id="banner-update-problems" class="alert alert-warning ctl-alert ctl-hidden"></div>
+      <div id="banner-update-status" class="ctl-status ctl-hidden"></div>
+
+      <div class="alert alert-secondary ctl-alert small">
+        No draft copy and no version history on updates. Saving a post that is already Live
+        changes what everyone sees immediately.
+      </div>
+
+      <div class="ctl-meta-grid">
+        <div class="ctl-meta-grid__wide">
+          <label class="form-label" for="input-update-title">Title</label>
+          <input class="form-control form-control-sm" id="input-update-title" maxlength="120">
+        </div>
+        <div class="ctl-meta-grid__wide">
+          <label class="form-label" for="input-update-summary">Short description</label>
+          <input class="form-control form-control-sm" id="input-update-summary" maxlength="300">
+          <div class="form-text">This is the line the Base card shows.</div>
+        </div>
+        <div class="ctl-meta-grid__wide">
+          <label class="form-label" for="input-update-image">Image</label>
+          <input class="form-control form-control-sm" id="input-update-image" disabled
+                 placeholder="Not wired yet - stored but never shown">
+          <div class="form-text">Field exists so the shape is settled. Nothing uploads or renders it.</div>
+        </div>
+      </div>
+
+      <div class="ctl-fields">
+        <div class="ctl-field">
+          <label class="form-label" for="text-update-body">Body</label>
+          <textarea class="form-control ctl-textarea" id="text-update-body" rows="16"></textarea>
+        </div>
       </div>
     </main>
 

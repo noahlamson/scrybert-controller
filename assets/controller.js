@@ -34,7 +34,8 @@
                premadeTimer: null,
                filter: { q: "", section: "", category: "" },
                sort: { key: "section", dir: 1 },
-               editingUserId: null };
+               editingUserId: null,
+               updates: [], updateId: null };
 
   function $(id) { return document.getElementById(id); }
   function show(el) { el.classList.remove("ctl-hidden"); }
@@ -111,7 +112,8 @@
     // are disabled here for the same reason - an Admin pressing them would only
     // ever collect a 403.
     if (data.user.role !== "super_admin") {
-      ["btn-promote", "btn-premade-promote", "btn-premade-unpublish", "btn-premade-delete"]
+      ["btn-promote", "btn-premade-promote", "btn-premade-unpublish", "btn-premade-delete",
+       "btn-update-promote", "btn-update-unpublish", "btn-update-delete"]
         .forEach(function (id) {
           $(id).disabled = true;
           $(id).title = "Super Admin only";
@@ -173,6 +175,9 @@
     state.premadeId = null;
     hide($("pane-premade"));
     hide($("pane-premades-browse"));
+    hide($("pane-updates"));
+    hide($("pane-update"));
+    hide($("pane-users"));
     show($("pane-editor"));
     state.coreId = id;
     renderRail();
@@ -432,6 +437,8 @@
     hide($("pane-editor"));
     hide($("pane-premade"));
     hide($("pane-premades-browse"));
+    hide($("pane-updates"));
+    hide($("pane-update"));
     show($("pane-users"));
     hide($("form-new-user"));
     loadUsers();
@@ -677,6 +684,8 @@
     hide($("pane-editor"));
     hide($("pane-premade"));
     hide($("pane-users"));
+    hide($("pane-updates"));
+    hide($("pane-update"));
     show($("pane-premades-browse"));
     state.premadeId = null;
     renderBrowse();
@@ -783,6 +792,9 @@
   function showPremadePane() {
     hide($("pane-editor"));
     hide($("pane-premades-browse"));
+    hide($("pane-users"));
+    hide($("pane-updates"));
+    hide($("pane-update"));
     show($("pane-premade"));
   }
 
@@ -1010,6 +1022,190 @@
     });
   }
 
+  // ------------------------------------------------------------- updates
+  //
+  // Flatter than cores/premades on purpose (see updates.py): no draft copy, no versions.
+  // `published` is the only gate, so Save on a live post is immediately what readers see -
+  // stated in the pane rather than hidden behind a staging step that does not exist.
+
+  function updatesStatus(msg, kind) {
+    var box = $("banner-updates-status");
+    if (!msg) { hide(box); return; }
+    box.textContent = msg;
+    box.className = "ctl-status " + (kind === "bad" ? "ctl-status--bad" : "ctl-status--ok");
+    show(box);
+  }
+
+  function updateStatus(msg, kind) {
+    var box = $("banner-update-status");
+    if (!msg) { hide(box); return; }
+    box.textContent = msg;
+    box.className = "ctl-status " + (kind === "bad" ? "ctl-status--bad" : "ctl-status--ok");
+    show(box);
+  }
+
+  function renderUpdateProblems(problems) {
+    var box = $("banner-update-problems");
+    if (!problems || !problems.length) { hide(box); return; }
+    box.innerHTML = "<strong>Cannot promote:</strong><ul class=\"mb-0 mt-1\"></ul>";
+    var ul = box.querySelector("ul");
+    problems.forEach(function (p) {
+      var li = document.createElement("li");
+      li.textContent = p;
+      ul.appendChild(li);
+    });
+    show(box);
+  }
+
+  // Seconds -> the same shape the app shows ("3/23/2027 at 9:31 pm"). Server stores epoch
+  // seconds; the console renders in the operator's own timezone, which is the right frame
+  // for "when did I promote this".
+  function stamp(seconds) {
+    if (!seconds) { return "\u2014"; }
+    var d = new Date(seconds * 1000);
+    var h = d.getHours();
+    var ampm = h >= 12 ? "pm" : "am";
+    h = h % 12; if (h === 0) { h = 12; }
+    var mins = d.getMinutes() < 10 ? "0" + d.getMinutes() : String(d.getMinutes());
+    return (d.getMonth() + 1) + "/" + d.getDate() + "/" + d.getFullYear() +
+           " at " + h + ":" + mins + " " + ampm;
+  }
+
+  function showUpdates() {
+    hide($("pane-editor"));
+    hide($("pane-premade"));
+    hide($("pane-premades-browse"));
+    hide($("pane-users"));
+    hide($("pane-update"));
+    show($("pane-updates"));
+    state.updateId = null;
+    loadUpdates();
+  }
+
+  function loadUpdates() {
+    return api("/updates").then(function (data) {
+      state.updates = data.updates || [];
+      var live = state.updates.filter(function (u) { return u.published; }).length;
+      $("label-update-count").textContent = live + "/" + state.updates.length;
+      renderUpdates();
+    }).catch(function (e) {
+      updatesStatus(detail(e) || "Could not load updates", "bad");
+    });
+  }
+
+  function renderUpdates() {
+    var body = $("rows-updates");
+    body.innerHTML = "";
+    if (!state.updates.length) { show($("updates-empty")); }
+    else { hide($("updates-empty")); }
+    var live = state.updates.filter(function (u) { return u.published; }).length;
+    $("label-updates-meta").textContent =
+      state.updates.length + " total \u00b7 " + live + " live";
+    state.updates.forEach(function (u) {
+      var tr = document.createElement("tr");
+      tr.className = "ctl-row";
+      tr.tabIndex = 0;
+      function cell(text, cls) {
+        var td = document.createElement("td");
+        if (cls) { td.className = cls; }
+        td.textContent = text;
+        tr.appendChild(td);
+      }
+      cell(u.title || "(untitled)", "ctl-cell__name");
+      cell(u.summary || "\u2014");
+      var liveTd = document.createElement("td");
+      var badge = document.createElement("span");
+      badge.className = "badge " + (u.published ? "ctl-badge-live" : "ctl-badge-off");
+      badge.textContent = u.published ? "live" : "draft";
+      liveTd.appendChild(badge);
+      tr.appendChild(liveTd);
+      cell(u.published ? stamp(u.published_at) : "\u2014");
+      tr.addEventListener("click", function () { selectUpdate(u.id); });
+      tr.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { selectUpdate(u.id); }
+      });
+      body.appendChild(tr);
+    });
+  }
+
+  function selectUpdate(id) {
+    api("/updates/" + id).then(function (entry) {
+      state.updateId = id;
+      hide($("pane-updates"));
+      show($("pane-update"));
+      $("label-update-name").textContent = entry.title || "(untitled)";
+      $("label-update-meta").textContent =
+        (entry.published ? "Live \u00b7 promoted " + stamp(entry.published_at)
+                         : "Draft \u00b7 never promoted");
+      $("input-update-title").value = entry.title || "";
+      $("input-update-summary").value = entry.summary || "";
+      $("input-update-image").value = entry.image_url || "";
+      $("text-update-body").value = entry.body || "";
+      renderUpdateProblems(entry.problems);
+      updateStatus("");
+    }).catch(function (e) {
+      updatesStatus(detail(e) || "Could not open that update", "bad");
+    });
+  }
+
+  function doSaveUpdate() {
+    api("/updates/" + state.updateId, "PUT", {
+      title: $("input-update-title").value,
+      summary: $("input-update-summary").value,
+      body: $("text-update-body").value
+    }).then(function (entry) {
+      renderUpdateProblems(entry.problems);
+      updateStatus(entry.published
+        ? "Saved. This post is Live, so that is what readers see now."
+        : "Saved as a draft. Not visible in the app until you promote it.", "ok");
+      $("label-update-name").textContent = entry.title || "(untitled)";
+      return loadUpdates();
+    }).catch(function (e) {
+      updateStatus(detail(e) || "Could not save.", "bad");
+    });
+  }
+
+  function doPromoteUpdate() {
+    api("/updates/" + state.updateId + "/promote", "POST", {}).then(function (res) {
+      updateStatus("Live now \u2014 promoted " + stamp(res.published_at) +
+                   ". It is the Base card on the app's next fetch.", "ok");
+      selectUpdate(state.updateId);
+      loadUpdates();
+    }).catch(function (e) {
+      var problems = e && e.data && e.data.detail && e.data.detail.problems;
+      if (problems) { renderUpdateProblems(problems); }
+      updateStatus(detail(e) || "Could not promote.", "bad");
+    });
+  }
+
+  function doUnpublishUpdate() {
+    api("/updates/" + state.updateId + "/unpublish", "POST", {}).then(function () {
+      updateStatus("Unpublished. Gone from the app; the text is kept.", "ok");
+      selectUpdate(state.updateId);
+      loadUpdates();
+    }).catch(function (e) {
+      updateStatus(detail(e) || "Could not unpublish.", "bad");
+    });
+  }
+
+  function doDeleteUpdate() {
+    if (!window.confirm("Delete this update permanently?\n\nNot reversible.")) { return; }
+    api("/updates/" + state.updateId, "DELETE").then(function () {
+      state.updateId = null;
+      showUpdates();
+    }).catch(function (e) {
+      updateStatus(detail(e) || "Could not delete.", "bad");
+    });
+  }
+
+  function doNewUpdate() {
+    api("/updates", "POST", { title: "", summary: "", body: "" }).then(function (res) {
+      return loadUpdates().then(function () { selectUpdate(res.id); });
+    }).catch(function (e) {
+      updatesStatus(detail(e) || "Could not create an update", "bad");
+    });
+  }
+
   // ---------------------------------------------------------------- boot
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -1056,6 +1252,14 @@
       $("btn-copy-link").textContent = "Copied";
       setTimeout(function () { $("btn-copy-link").textContent = "Copy link"; }, 1200);
     });
+
+    $("btn-open-updates").addEventListener("click", showUpdates);
+    $("btn-back-updates").addEventListener("click", showUpdates);
+    $("btn-new-update").addEventListener("click", doNewUpdate);
+    $("btn-update-save").addEventListener("click", doSaveUpdate);
+    $("btn-update-promote").addEventListener("click", doPromoteUpdate);
+    $("btn-update-unpublish").addEventListener("click", doUnpublishUpdate);
+    $("btn-update-delete").addEventListener("click", doDeleteUpdate);
 
     $("btn-open-premades").addEventListener("click", showBrowse);
     $("btn-back-premades").addEventListener("click", showBrowse);
