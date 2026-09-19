@@ -33,7 +33,8 @@
                premades: [], premadeId: null, premade: null, taxonomy: null,
                premadeTimer: null,
                filter: { q: "", section: "", category: "" },
-               sort: { key: "section", dir: 1 } };
+               sort: { key: "section", dir: 1 },
+               editingUserId: null };
 
   function $(id) { return document.getElementById(id); }
   function show(el) { el.classList.remove("ctl-hidden"); }
@@ -419,6 +420,14 @@
     return !!(state.user && state.user.role === "super_admin");
   }
 
+  // Mirrors the server's ceiling in console_edit_user(): a plain Admin may edit an
+  // ordinary account but not an Admin's or a Super Admin's. Client-side check is only for
+  // not offering a button that would 403 - the server enforces the real gate.
+  function canEditUser(u) {
+    if (isSuperAdmin()) { return true; }
+    return u.role !== "super_admin" && u.role !== "admin";
+  }
+
   function showUsers() {
     hide($("pane-editor"));
     hide($("pane-premade"));
@@ -451,30 +460,98 @@
     var canRotate = isSuperAdmin();
     state.users.forEach(function (u) {
       var tr = document.createElement("tr");
-      [String(u.id), u.email,
-       ((u.first_name || "") + " " + (u.last_name || "")).trim() || "\u2014",
-       ROLE_LABELS[u.role] || u.role].forEach(function (text) {
-        var td = document.createElement("td");
-        td.textContent = text;
-        tr.appendChild(td);
-      });
+      var editing = state.editingUserId === u.id;
+
+      var idTd = document.createElement("td");
+      idTd.textContent = String(u.id);
+      tr.appendChild(idTd);
+
+      var emailTd = document.createElement("td");
+      var nameTd = document.createElement("td");
+      if (editing) {
+        var emailInput = document.createElement("input");
+        emailInput.className = "form-control form-control-sm";
+        emailInput.type = "email";
+        emailInput.id = "edit-email-" + u.id;
+        emailInput.value = u.email;
+        emailTd.appendChild(emailInput);
+
+        var nameWrap = document.createElement("div");
+        nameWrap.className = "d-flex gap-1";
+        var firstInput = document.createElement("input");
+        firstInput.className = "form-control form-control-sm";
+        firstInput.placeholder = "First";
+        firstInput.id = "edit-first-" + u.id;
+        firstInput.value = u.first_name || "";
+        var lastInput = document.createElement("input");
+        lastInput.className = "form-control form-control-sm";
+        lastInput.placeholder = "Last";
+        lastInput.id = "edit-last-" + u.id;
+        lastInput.value = u.last_name || "";
+        nameWrap.appendChild(firstInput);
+        nameWrap.appendChild(lastInput);
+        nameTd.appendChild(nameWrap);
+      } else {
+        emailTd.textContent = u.email;
+        nameTd.textContent = ((u.first_name || "") + " " + (u.last_name || "")).trim() || "\u2014";
+      }
+      tr.appendChild(emailTd);
+      tr.appendChild(nameTd);
+
+      var roleTd = document.createElement("td");
+      roleTd.textContent = ROLE_LABELS[u.role] || u.role;
+      tr.appendChild(roleTd);
+
       var td = document.createElement("td");
       td.className = "text-end";
-      if (canRotate) {
-        var wrap = document.createElement("div");
-        wrap.className = "d-flex gap-2 justify-content-end";
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "btn btn-sm btn-outline-warning";
-        b.textContent = "Rotate";
-        b.addEventListener("click", function () { doRotate(u); });
-        wrap.appendChild(b);
-        var d = document.createElement("button");
-        d.type = "button";
-        d.className = "btn btn-sm btn-outline-danger";
-        d.textContent = "Delete";
-        d.addEventListener("click", function () { doDeleteUser(u); });
-        wrap.appendChild(d);
+      var wrap = document.createElement("div");
+      wrap.className = "d-flex gap-2 justify-content-end";
+      if (editing) {
+        var save = document.createElement("button");
+        save.type = "button";
+        save.className = "btn btn-sm btn-primary";
+        save.textContent = "Save";
+        save.addEventListener("click", function () { doSaveEdit(u); });
+        wrap.appendChild(save);
+        var cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "btn btn-sm btn-outline-secondary";
+        cancel.textContent = "Cancel";
+        cancel.addEventListener("click", function () {
+          state.editingUserId = null;
+          usersStatus("");
+          renderUsers();
+        });
+        wrap.appendChild(cancel);
+      } else {
+        if (canEditUser(u)) {
+          var e = document.createElement("button");
+          e.type = "button";
+          e.className = "btn btn-sm btn-outline-light";
+          e.textContent = "Edit";
+          e.addEventListener("click", function () {
+            state.editingUserId = u.id;
+            usersStatus("");
+            renderUsers();
+          });
+          wrap.appendChild(e);
+        }
+        if (canRotate) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn btn-sm btn-outline-warning";
+          b.textContent = "Rotate";
+          b.addEventListener("click", function () { doRotate(u); });
+          wrap.appendChild(b);
+          var d = document.createElement("button");
+          d.type = "button";
+          d.className = "btn btn-sm btn-outline-danger";
+          d.textContent = "Delete";
+          d.addEventListener("click", function () { doDeleteUser(u); });
+          wrap.appendChild(d);
+        }
+      }
+      if (wrap.childNodes.length) {
         td.appendChild(wrap);
       } else {
         td.textContent = "\u2014";
@@ -484,6 +561,24 @@
     });
     $("label-users-meta").textContent =
       state.users.length + (state.users.length === 1 ? " account" : " accounts");
+  }
+
+  // Reads the three inline inputs a row's Edit mode created and PUTs whichever changed.
+  // Stays in edit mode on failure (server detail shown via usersStatus) so nothing typed
+  // is lost - only a successful save clears editingUserId and re-renders from fresh data.
+  function doSaveEdit(u) {
+    var email = $("edit-email-" + u.id).value.trim();
+    var first = $("edit-first-" + u.id).value.trim();
+    var last = $("edit-last-" + u.id).value.trim();
+    api("/users/" + u.id, "PUT", { email: email, first_name: first, last_name: last })
+      .then(function () {
+        state.editingUserId = null;
+        usersStatus("");
+        return loadUsers();
+      })
+      .catch(function (e) {
+        usersStatus((e.data && e.data.detail) || "Could not save changes");
+      });
   }
 
   function fillRoleOptions() {
