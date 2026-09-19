@@ -494,9 +494,18 @@
     });
   }
 
-  function showNewKey(who, key) {
+  function showNewKey(who, key, link) {
     $("label-new-key-who").textContent = who;
     $("field-new-key").value = key;
+    if (link) {
+      $("field-new-link").value = link;
+      show($("row-new-link"));
+      hide($("label-new-link-missing"));
+    } else {
+      $("field-new-link").value = "";
+      hide($("row-new-link"));
+      show($("label-new-link-missing"));
+    }
     show($("panel-new-key"));
   }
 
@@ -519,7 +528,7 @@
       $("field-user-first").value = "";
       $("field-user-last").value = "";
       hide($("form-new-user"));
-      showNewKey(data.email, data.api_key);
+      showNewKey(data.email, data.api_key, data.install_link);
       return loadUsers();
     }).catch(function (e) {
       err.textContent = (e.data && e.data.detail) || "Could not create the account";
@@ -534,7 +543,7 @@
       return;
     }
     api("/users/" + u.id + "/rotate-key", "POST", {}).then(function (data) {
-      showNewKey(u.email, data.api_key);
+      showNewKey(u.email, data.api_key, data.install_link);
     }).catch(function (e) {
       usersStatus((e.data && e.data.detail) || "Could not rotate the key");
     });
@@ -903,6 +912,7 @@
     $("btn-create-user").addEventListener("click", doCreateUser);
     $("btn-dismiss-key").addEventListener("click", function () {
       $("field-new-key").value = "";
+      $("field-new-link").value = "";
       hide($("panel-new-key"));
     });
     $("btn-copy-key").addEventListener("click", function () {
@@ -914,6 +924,13 @@
       try { document.execCommand("copy"); } catch (e) { /* user can still select it */ }
       $("btn-copy-key").textContent = "Copied";
       setTimeout(function () { $("btn-copy-key").textContent = "Copy"; }, 1200);
+    });
+    $("btn-copy-link").addEventListener("click", function () {
+      var f = $("field-new-link");
+      f.select();
+      try { document.execCommand("copy"); } catch (e) { /* user can still select it */ }
+      $("btn-copy-link").textContent = "Copied";
+      setTimeout(function () { $("btn-copy-link").textContent = "Copy link"; }, 1200);
     });
 
     $("btn-open-premades").addEventListener("click", showBrowse);

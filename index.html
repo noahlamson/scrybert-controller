@@ -208,6 +208,14 @@
           <button class="btn btn-sm btn-outline-light" id="btn-copy-key" type="button">Copy</button>
           <button class="btn btn-sm btn-outline-light" id="btn-dismiss-key" type="button">Done</button>
         </div>
+        <div id="row-new-link" class="d-flex gap-2 align-items-center mt-2 ctl-hidden">
+          <input class="form-control form-control-sm font-monospace" id="field-new-link" readonly>
+          <button class="btn btn-sm btn-outline-light" id="btn-copy-link" type="button">Copy link</button>
+        </div>
+        <div id="label-new-link-missing" class="small mt-2 text-warning ctl-hidden">
+          Install link could not be created (testers file not writable on the server yet).
+          The key above still works &mdash; hand it over directly.
+        </div>
         <div class="small mt-2 text-muted">
           This is the only time it is shown. Lose it and the account needs a new key,
           which stops the old one working.
