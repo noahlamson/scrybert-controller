@@ -468,14 +468,11 @@
 
       var emailTd = document.createElement("td");
       var nameTd = document.createElement("td");
+      // Email is display-only here, even in edit mode - Noah, 2026-09-19: "make email
+      // address not editable from controller... only user app." Login identifier; the
+      // only place it may change is the account owner themselves, via PUT /v1/me.
+      emailTd.textContent = u.email;
       if (editing) {
-        var emailInput = document.createElement("input");
-        emailInput.className = "form-control form-control-sm";
-        emailInput.type = "email";
-        emailInput.id = "edit-email-" + u.id;
-        emailInput.value = u.email;
-        emailTd.appendChild(emailInput);
-
         var nameWrap = document.createElement("div");
         nameWrap.className = "d-flex gap-1";
         var firstInput = document.createElement("input");
@@ -567,10 +564,9 @@
   // Stays in edit mode on failure (server detail shown via usersStatus) so nothing typed
   // is lost - only a successful save clears editingUserId and re-renders from fresh data.
   function doSaveEdit(u) {
-    var email = $("edit-email-" + u.id).value.trim();
     var first = $("edit-first-" + u.id).value.trim();
     var last = $("edit-last-" + u.id).value.trim();
-    api("/users/" + u.id, "PUT", { email: email, first_name: first, last_name: last })
+    api("/users/" + u.id, "PUT", { first_name: first, last_name: last })
       .then(function () {
         state.editingUserId = null;
         usersStatus("");
