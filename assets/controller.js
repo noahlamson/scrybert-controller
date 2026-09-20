@@ -547,6 +547,13 @@
           b.textContent = "Rotate";
           b.addEventListener("click", function () { doRotate(u); });
           wrap.appendChild(b);
+          var li = document.createElement("button");
+          li.type = "button";
+          li.className = "btn btn-sm btn-outline-info";
+          li.textContent = "Link";
+          li.title = "Create an install link for this account without changing its key";
+          li.addEventListener("click", function () { doInstallLink(u); });
+          wrap.appendChild(li);
           var d = document.createElement("button");
           d.type = "button";
           d.className = "btn btn-sm btn-outline-danger";
@@ -602,6 +609,12 @@
   }
 
   function showNewKey(who, key, link) {
+    // Restore the key-bearing presentation: doInstallLink() below hides these, and the
+    // panel is shared, so a create straight after a link-mint would otherwise show a
+    // link-only panel with a key in it.
+    $("label-new-key-title").textContent = "Account created \u2014 copy this key now";
+    show($("row-new-key"));
+    show($("label-new-key-note"));
     $("label-new-key-who").textContent = who;
     $("field-new-key").value = key;
     if (link) {
@@ -662,6 +675,26 @@
   // recoverable in spirit (a new key can be issued again); this is not, so the bar for a
   // stray click is higher. Typing the email is also the one piece of friction that forces
   // a second look at WHICH row got clicked in a table that can run to hundreds of rows.
+  // Mints an install link for an existing account WITHOUT rotating its key, so a tester
+  // already running the app keeps working. Reuses the same panel the create/rotate flows
+  // use, with the key field left empty - there is no new key to show here, and printing
+  // the existing one would put a working credential on screen for no reason.
+  function doInstallLink(u) {
+    api("/users/" + u.id + "/install-link", "POST", {}).then(function (data) {
+      $("label-new-key-title").textContent = "Install link \u2014 the key is unchanged";
+      $("label-new-key-who").textContent = u.email;
+      $("field-new-key").value = "";
+      hide($("row-new-key"));
+      hide($("label-new-key-note"));
+      $("field-new-link").value = data.install_link;
+      show($("row-new-link"));
+      hide($("label-new-link-missing"));
+      show($("panel-new-key"));
+    }).catch(function (e) {
+      usersStatus(detail(e) || "Could not create an install link");
+    });
+  }
+
   function doDeleteUser(u) {
     var typed = window.prompt(
       "Delete " + u.email + "?\n\nThis permanently deletes the account and everything it " +

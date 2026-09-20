@@ -213,9 +213,9 @@
            recovery is a rotate, which invalidates the old one. So it is shown loudly,
            stays until dismissed, and is never folded into the table below. -->
       <div id="panel-new-key" class="alert alert-success ctl-alert ctl-hidden">
-        <div class="fw-semibold mb-1">Account created &mdash; copy this key now</div>
+        <div class="fw-semibold mb-1" id="label-new-key-title">Account created &mdash; copy this key now</div>
         <div class="small mb-2" id="label-new-key-who">&mdash;</div>
-        <div class="d-flex gap-2 align-items-center">
+        <div class="d-flex gap-2 align-items-center" id="row-new-key">
           <input class="form-control form-control-sm font-monospace" id="field-new-key" readonly>
           <button class="btn btn-sm btn-outline-light" id="btn-copy-key" type="button">Copy</button>
           <button class="btn btn-sm btn-outline-light" id="btn-dismiss-key" type="button">Done</button>
@@ -228,7 +228,7 @@
           Install link could not be created (testers file not writable on the server yet).
           The key above still works &mdash; hand it over directly.
         </div>
-        <div class="small mt-2 text-muted">
+        <div class="small mt-2 text-muted" id="label-new-key-note">
           This is the only time it is shown. Lose it and the account needs a new key,
           which stops the old one working.
         </div>
@@ -575,6 +575,6 @@
 </div>
 
 <script src="/assets/vendor/bootstrap.bundle.min.js"></script>
-<script src="/assets/controller.js?v=2026091901"></script>
+<script src="/assets/controller.js?v=2026091902"></script>
 </body>
 </html>
