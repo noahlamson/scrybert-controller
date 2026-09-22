@@ -261,6 +261,7 @@ body { background: var(--ctl-bg); }
 
 .ctl-table { margin: 0; font-size: .86rem; }
 .ctl-table td, .ctl-table th { border-color: rgba(255, 255, 255, .07); vertical-align: middle; }
+.ctl-row--unread td { font-weight: 600; }
 
 .ctl-th {
   font-size: .7rem;

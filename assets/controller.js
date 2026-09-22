@@ -31,7 +31,7 @@
 
   var state = { user: null, users: [], cores: [], coreId: null, core: null, timers: {},
                premades: [], premadeId: null, premade: null, taxonomy: null,
-               premadeTimer: null,
+               premadeTimer: null, inbox: [],
                filter: { q: "", section: "", category: "" },
                sort: { key: "section", dir: 1 },
                editingUserId: null,
@@ -119,6 +119,7 @@
           $(id).title = "Super Admin only";
         });
     }
+    loadInboxCount();
     loadCores();
     loadTaxonomy().then(loadPremades).catch(function () {
       // A premades failure must not take the cores console down with it - the
@@ -178,6 +179,7 @@
     hide($("pane-updates"));
     hide($("pane-update"));
     hide($("pane-users"));
+    hide($("pane-inbox"));
     show($("pane-editor"));
     state.coreId = id;
     renderRail();
@@ -439,6 +441,7 @@
     hide($("pane-premades-browse"));
     hide($("pane-updates"));
     hide($("pane-update"));
+    hide($("pane-inbox"));
     show($("pane-users"));
     hide($("form-new-user"));
     loadUsers();
@@ -719,6 +722,7 @@
     hide($("pane-users"));
     hide($("pane-updates"));
     hide($("pane-update"));
+    hide($("pane-inbox"));
     show($("pane-premades-browse"));
     state.premadeId = null;
     renderBrowse();
@@ -828,6 +832,7 @@
     hide($("pane-users"));
     hide($("pane-updates"));
     hide($("pane-update"));
+    hide($("pane-inbox"));
     show($("pane-premade"));
   }
 
@@ -1104,12 +1109,139 @@
            " at " + h + ":" + mins + " " + ampm;
   }
 
+  // ---------------------------------------------------------------- inbox
+  //
+  // Contact-form submissions. Read-only from here: mark read, and a mailto link using
+  // the address the sender gave. No reply is composed or sent from the console.
+
+  var TYPE_LABELS = { press: "Press", partnerships: "Partnerships",
+                       feedback: "Feedback", support: "Support" };
+
+  function inboxStatus(msg, kind) {
+    var box = $("banner-inbox-status");
+    if (!msg) { hide(box); return; }
+    box.textContent = msg;
+    box.className = "ctl-status " + (kind === "bad" ? "ctl-status--bad" : "ctl-status--ok");
+    show(box);
+  }
+
+  function showInbox() {
+    hide($("pane-editor"));
+    hide($("pane-premade"));
+    hide($("pane-premades-browse"));
+    hide($("pane-users"));
+    hide($("pane-updates"));
+    hide($("pane-update"));
+    show($("pane-inbox"));
+    loadInbox();
+  }
+
+  function loadInboxCount() {
+    return api("/contact").then(function (data) {
+      state.inbox = data.submissions || [];
+      var unread = state.inbox.filter(function (s) { return !s.read; }).length;
+      $("label-inbox-count").textContent = unread;
+    }).catch(function () {
+      $("label-inbox-count").textContent = "!";
+      $("label-inbox-count").title = "Inbox failed to load";
+    });
+  }
+
+  function loadInbox() {
+    return api("/contact").then(function (data) {
+      state.inbox = data.submissions || [];
+      var unread = state.inbox.filter(function (s) { return !s.read; }).length;
+      $("label-inbox-count").textContent = unread;
+      $("label-inbox-meta").textContent = state.inbox.length + " total, " + unread + " unread";
+      renderInbox();
+    }).catch(function (e) {
+      inboxStatus(detail(e) || "Could not load the inbox", "bad");
+    });
+  }
+
+  function markInboxRead(id) {
+    api("/contact/" + id + "/read", "POST", {}).then(function () {
+      var item = state.inbox.filter(function (s) { return s.id === id; })[0];
+      if (item) { item.read = 1; }
+      var unread = state.inbox.filter(function (s) { return !s.read; }).length;
+      $("label-inbox-count").textContent = unread;
+      $("label-inbox-meta").textContent = state.inbox.length + " total, " + unread + " unread";
+      renderInbox();
+    }).catch(function (e) {
+      inboxStatus(detail(e) || "Could not mark that read", "bad");
+    });
+  }
+
+  function renderInbox() {
+    var body = $("rows-inbox");
+    body.innerHTML = "";
+    state.inbox.forEach(function (item) {
+      var tr = document.createElement("tr");
+      if (!item.read) { tr.className = "ctl-row--unread"; }
+
+      var dotTd = document.createElement("td");
+      if (!item.read) {
+        var dot = document.createElement("span");
+        dot.className = "ctl-dot ctl-dot--live";
+        dot.title = "Unread";
+        dotTd.appendChild(dot);
+      }
+      tr.appendChild(dotTd);
+
+      var fromTd = document.createElement("td");
+      var nameDiv = document.createElement("div");
+      nameDiv.textContent = item.name;
+      var emailLink = document.createElement("a");
+      emailLink.href = "mailto:" + item.email;
+      emailLink.textContent = item.email;
+      emailLink.className = "small";
+      fromTd.appendChild(nameDiv);
+      fromTd.appendChild(emailLink);
+      tr.appendChild(fromTd);
+
+      var typeTd = document.createElement("td");
+      typeTd.textContent = TYPE_LABELS[item.type] || item.type || "\u2014";
+      tr.appendChild(typeTd);
+
+      var msgTd = document.createElement("td");
+      msgTd.textContent = item.message;
+      msgTd.style.maxWidth = "360px";
+      msgTd.style.whiteSpace = "pre-wrap";
+      tr.appendChild(msgTd);
+
+      var whenTd = document.createElement("td");
+      whenTd.className = "small text-muted";
+      whenTd.textContent = stamp(item.created_at);
+      tr.appendChild(whenTd);
+
+      var actionTd = document.createElement("td");
+      actionTd.className = "text-end";
+      if (!item.read) {
+        var readBtn = document.createElement("button");
+        readBtn.type = "button";
+        readBtn.className = "btn btn-sm btn-outline-secondary";
+        readBtn.textContent = "Mark read";
+        readBtn.addEventListener("click", function () { markInboxRead(item.id); });
+        actionTd.appendChild(readBtn);
+      } else {
+        var readSpan = document.createElement("span");
+        readSpan.className = "small text-muted";
+        readSpan.textContent = "Read";
+        actionTd.appendChild(readSpan);
+      }
+      tr.appendChild(actionTd);
+
+      body.appendChild(tr);
+    });
+  }
+
   function showUpdates() {
     hide($("pane-editor"));
     hide($("pane-premade"));
     hide($("pane-premades-browse"));
     hide($("pane-users"));
     hide($("pane-update"));
+    hide($("pane-inbox"));
     show($("pane-updates"));
     state.updateId = null;
     loadUpdates();
@@ -1254,6 +1386,7 @@
       api("/logout", "POST", {}).then(function () { location.reload(); });
     });
 
+    $("btn-open-inbox").addEventListener("click", showInbox);
     $("btn-open-users").addEventListener("click", showUsers);
     $("btn-new-user").addEventListener("click", function () {
       hide($("new-user-error"));

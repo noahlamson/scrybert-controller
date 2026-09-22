@@ -69,6 +69,21 @@
 
       <!-- Two collapsible groups. Both open by default: the console's whole job is
            showing what is live at a glance, and a collapsed group hides that. -->
+      <!-- Inbox. Top of the rail on purpose - Noah, 2026-09-22: contact-form submissions
+           should be the first thing seen on open. Read-only from here: no reply is
+           composed or sent from the console, just a read/unread state and a mailto link. -->
+      <div class="ctl-group" id="group-inbox">
+        <div class="ctl-group__head ctl-group__head--static">Inbox</div>
+        <ul class="ctl-rail__list">
+          <li>
+            <button class="ctl-rail__item" id="btn-open-inbox" type="button">
+              <span class="ctl-rail__name">Contact form</span>
+              <span class="ctl-rail__count" id="label-inbox-count">&mdash;</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
       <div class="ctl-group" id="group-cores">
         <button class="ctl-group__head" id="toggle-cores" type="button"
                 aria-expanded="true" aria-controls="list-cores">
@@ -196,6 +211,34 @@
     </main>
 
     <!-- Accounts pane. Same pane slot as the others; one is visible at a time. -->
+    <!-- Inbox pane. Read-only: mark read, and a mailto link. No reply composed here. -->
+    <main class="ctl-main ctl-hidden" id="pane-inbox">
+      <div class="ctl-editor__head">
+        <div>
+          <h2 class="ctl-editor__title">Contact form</h2>
+          <div class="ctl-editor__meta" id="label-inbox-meta">&mdash;</div>
+        </div>
+      </div>
+
+      <div id="banner-inbox-status" class="ctl-status ctl-hidden"></div>
+
+      <div class="table-responsive">
+        <table class="table table-sm ctl-table align-middle">
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">From</th>
+              <th scope="col">Type</th>
+              <th scope="col">Message</th>
+              <th scope="col">Received</th>
+              <th scope="col" class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody id="rows-inbox"></tbody>
+        </table>
+      </div>
+    </main>
+
     <main class="ctl-main ctl-hidden" id="pane-users">
       <div class="ctl-editor__head">
         <div>
